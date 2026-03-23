@@ -1,0 +1,21 @@
+# Python
+backend/venv/
+backend/.env
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node (if any)
+node_modules/

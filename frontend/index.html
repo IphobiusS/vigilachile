@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VigilaChile — Monitoreo de Desastres</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="icon" href="icon-192.png" type="image/png"/>
+  <meta name="theme-color" content="#4fc3f7"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="VigilaChile"/>
+  <meta name="description" content="Monitoreo de desastres naturales en tiempo real para Chile. Sismos, incendios, volcanes y tsunamis."/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <div id="sidebar">
+    <div id="logo">
+      <h1>🛰️ VigilaChile</h1>
+      <p>Monitoreo de desastres en tiempo real</p>
+    </div>
+
+    <div id="alert-banner" class="hidden">
+      ⚠️ <span id="alert-text"></span>
+    </div>
+
+    <!-- Stats: 1 fila compacta -->
+    <div id="stats-grid">
+      <div class="stat-card" id="risk-card">
+        <div class="stat-icon">🚨</div>
+        <div class="stat-info">
+          <span class="stat-number" id="risk-score">--</span>
+          <span class="stat-label" id="risk-level">Riesgo</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🔥</div>
+        <div class="stat-info">
+          <span class="stat-number" id="fire-count">--</span>
+          <span class="stat-label">Focos</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🌍</div>
+        <div class="stat-info">
+          <span class="stat-number" id="quake-count">--</span>
+          <span class="stat-label">Sismos</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-info">
+          <span class="stat-number" id="max-mag">--</span>
+          <span class="stat-label">Mag. máx</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="risk-desc"></div>
+
+    <div id="location-card" class="hidden">
+      <div id="location-content"></div>
+    </div>
+
+    <!-- Tendencia compacta -->
+    <div id="trends-card">
+      <div id="trends-content">Cargando...</div>
+    </div>
+
+    <!-- Resumen amenazas -->
+    <div id="threat-summary">
+      <div class="threat-title">🛡️ Resumen de Amenazas</div>
+      <div class="threat-row" data-threat="volc"><span class="threat-icon">🌋</span><div class="threat-info"><span class="threat-name">Volcanes</span><div class="threat-bar"><div class="threat-bar-fill" data-bar="volc" style="width:0%;background:#5c7a9e"></div></div></div><span class="threat-badge" style="color:#5c7a9e;border-color:#5c7a9e;background:#5c7a9e22">Cargando...</span></div>
+      <div class="threat-row" data-threat="tsun"><span class="threat-icon">🌊</span><div class="threat-info"><span class="threat-name">Tsunami</span><div class="threat-bar"><div class="threat-bar-fill" data-bar="tsun" style="width:0%;background:#5c7a9e"></div></div></div><span class="threat-badge" style="color:#5c7a9e;border-color:#5c7a9e;background:#5c7a9e22">Cargando...</span></div>
+      <div class="threat-row" data-threat="clima"><span class="threat-icon">🌧️</span><div class="threat-info"><span class="threat-name">Lluvia</span><div class="threat-bar"><div class="threat-bar-fill" data-bar="clima" style="width:0%;background:#5c7a9e"></div></div></div><span class="threat-badge" style="color:#5c7a9e;border-color:#5c7a9e;background:#5c7a9e22">Cargando...</span></div>
+      <div class="threat-row" data-threat="reg"><span class="threat-icon">🗺️</span><div class="threat-info"><span class="threat-name">Regiones</span><div class="threat-bar"><div class="threat-bar-fill" data-bar="reg" style="width:0%;background:#5c7a9e"></div></div></div><span class="threat-badge" style="color:#5c7a9e;border-color:#5c7a9e;background:#5c7a9e22">Cargando...</span></div>
+    </div>
+    <div id="threat-tooltip" class="hidden"></div>
+
+    <!-- Buscador -->
+    <div id="search-container">
+      <div id="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Buscar comuna, ciudad o localidad..." autocomplete="off"/>
+        <button id="search-clear" class="hidden">✕</button>
+      </div>
+      <ul id="search-results" class="hidden"></ul>
+    </div>
+
+    <!-- Capas + Filtro magnitud en bloque compacto -->
+    <div id="controls-block">
+      <div class="controls-header">
+        <h3>Capas</h3>
+        <div class="mag-filter-inline">
+          <span class="mag-label">Mag. mín:</span>
+          <input type="range" id="mag-slider" min="2.5" max="7" step="0.5" value="2.5"/>
+          <span id="mag-value" class="mag-val">2.5</span>
+        </div>
+      </div>
+      <div class="controls-grid">
+        <label class="toggle"><input type="checkbox" id="toggle-fires" checked/><span class="slider"></span><span>Incendios</span></label>
+        <label class="toggle"><input type="checkbox" id="toggle-quakes" checked/><span class="slider"></span><span>Sismos</span></label>
+        <label class="toggle"><input type="checkbox" id="toggle-volcanoes" checked/><span class="slider"></span><span>Volcanes</span></label>
+        <label class="toggle"><input type="checkbox" id="toggle-regions" checked/><span class="slider"></span><span>Semáforo</span></label>
+        <label class="toggle"><input type="checkbox" id="toggle-risk" checked/><span class="slider"></span><span>Zonas riesgo</span></label>
+        <label class="toggle"><input type="checkbox" id="toggle-heat"/><span class="slider"></span><span>Calor 30d</span></label>
+      </div>
+      <div id="heat-status" class="hidden"></div>
+    </div>
+
+    <!-- Gráfico compacto -->
+    <div class="chart-container">
+      <canvas id="magChart" height="100"></canvas>
+    </div>
+
+    <!-- Action buttons integrados en sidebar -->
+    <div id="sidebar-actions">
+      <button id="btn-location" title="Mi ubicación">📍</button>
+      <button id="btn-voice" title="Modo voz">🔇</button>
+      <button id="btn-ai" title="Análisis IA">🤖</button>
+      <button id="btn-pdf" title="Descargar PDF">📄</button>
+      <button id="btn-stats" title="Estadísticas">📊</button>
+      <button id="btn-vuln" title="Vulnerabilidad">🛡️</button>
+      <button id="btn-evacuate" title="Evacuación">🧭</button>
+      <button id="btn-weather" title="Clima">🌧️</button>
+      <button id="btn-share" title="Compartir">🔗</button>
+      <button id="btn-kiosk" title="Quiosco TV">📺</button>
+      <button id="fullscreen-btn" title="Pantalla completa">⛶</button>
+    </div>
+
+    <div id="footer">Datos: CSN · NASA FIRMS · Actualizando...</div>
+  </div>
+
+  <div id="map"></div>
+
+  <!-- Panel eventos flotante (arriba derecha) -->
+  <div id="events-float">
+    <div id="events-float-header">
+      <div id="live-indicator"><span class="live-dot"></span> EN VIVO</div>
+      <div id="live-last"></div>
+      <button id="events-toggle-btn">▲</button>
+    </div>
+    <div id="events-float-body">
+      <ul id="events"></ul>
+    </div>
+  </div>
+
+  <!-- Panel IA — Dock inferior -->
+  <div id="ai-dock">
+    <div id="ai-dock-bar" title="Click para expandir análisis IA">
+      <div id="ai-dock-left">
+        <span id="ai-dock-icon">🤖</span>
+        <span id="ai-dock-label">ANÁLISIS IA</span>
+        <span id="ai-dock-divider"></span>
+        <span id="ai-dock-preview">Generando análisis...</span>
+      </div>
+      <div id="ai-dock-right">
+        <span id="ai-dock-meta"></span>
+        <button id="ai-dock-toggle">▲</button>
+      </div>
+    </div>
+    <div id="ai-dock-body" class="collapsed">
+      <div id="ai-dock-content">
+        <div id="ai-report">Generando análisis...</div>
+      </div>
+      <div id="ai-dock-footer">
+        <div id="ai-meta"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modo emergencia -->
+  <div id="emergency-overlay" class="hidden">
+    <div id="emergency-content">
+      <h1>🚨 ALERTA SÍSMICA MAYOR</h1>
+      <div id="emergency-quake"></div>
+      <div class="emergency-instructions">
+        <h2>INSTRUCCIONES DE EVACUACIÓN</h2>
+        <p>1. MANTENGA LA CALMA. Agáchese, cúbrase y sujétese.</p>
+        <p>2. Aléjese de ventanas, espejos y objetos que puedan caer.</p>
+        <p>3. Si está en zona costera, EVACÚE hacia terreno alto INMEDIATAMENTE.</p>
+        <p>4. No use ascensores. Use las escaleras con cuidado.</p>
+        <p>5. Sintonice Radio Nacional o siga instrucciones de SENAPRED.</p>
+        <p>6. Llame al 131 (Ambulancia), 132 (Bomberos) o 133 (Carabineros).</p>
+      </div>
+      <button id="emergency-close">Entendido — Ver mapa</button>
+    </div>
+  </div>
+
+  <!-- MODO QUIOSCO TV -->
+  <div id="kiosk-overlay" class="hidden">
+    <div id="kiosk-top">
+      <div id="kiosk-logo">🛰️ VigilaChile</div>
+      <div id="kiosk-subtitle">Sistema de Monitoreo de Desastres Naturales — Tiempo Real</div>
+      <div id="kiosk-clock"></div>
+    </div>
+    <div id="kiosk-stats">
+      <div class="kiosk-stat">
+        <div class="kiosk-num" id="kiosk-quakes">--</div>
+        <div class="kiosk-label">Sismos 24h</div>
+      </div>
+      <div class="kiosk-stat">
+        <div class="kiosk-num" id="kiosk-mag">--</div>
+        <div class="kiosk-label">Magnitud máx.</div>
+      </div>
+      <div class="kiosk-stat">
+        <div class="kiosk-num" id="kiosk-fires">--</div>
+        <div class="kiosk-label">Focos activos</div>
+      </div>
+      <div class="kiosk-stat">
+        <div class="kiosk-num" id="kiosk-risk">--</div>
+        <div class="kiosk-label">Índice riesgo</div>
+      </div>
+    </div>
+    <div id="kiosk-main">
+      <div id="kiosk-last-quake">
+        <div class="kiosk-section-title">🌍 Último sismo registrado</div>
+        <div id="kiosk-last-content">Cargando...</div>
+      </div>
+      <div id="kiosk-recent">
+        <div class="kiosk-section-title">📋 Sismos recientes M≥3.5</div>
+        <ul id="kiosk-events-list"></ul>
+      </div>
+      <div id="kiosk-ai-block">
+        <div class="kiosk-section-title">🤖 Análisis IA en tiempo real</div>
+        <div id="kiosk-ai-text">Cargando análisis...</div>
+      </div>
+    </div>
+    <div id="kiosk-footer">
+      Fuente: Centro Sismológico Nacional (CSN) · Universidad de Chile · NASA FIRMS
+      <span id="kiosk-update"></span>
+    </div>
+    <button id="kiosk-close">✕ Salir del modo quiosco</button>
+  </div>
+
+  <!-- VULNERABILIDAD POR REGIÓN -->
+  <div id="vuln-overlay" class="hidden">
+    <div id="vuln-header">
+      <div id="vuln-title">🛡️ Índice de Vulnerabilidad por Región — Chile</div>
+      <button id="vuln-close">✕ Cerrar</button>
+    </div>
+    <div id="vuln-body">
+      <div id="vuln-legend">
+        <span class="vuln-badge" style="background:#ff333322;border-color:#ff3333;color:#ff3333">🔴 Alerta Roja</span>
+        <span class="vuln-badge" style="background:#ff950022;border-color:#ff9500;color:#ff9500">🟠 Naranja</span>
+        <span class="vuln-badge" style="background:#ffd70022;border-color:#ffd700;color:#ffd700">🟡 Amarilla</span>
+        <span class="vuln-badge" style="background:#4ade8022;border-color:#4ade80;color:#4ade80">🟢 Alerta Verde</span>
+        <span class="vuln-badge" style="background:#ffffff22;border-color:#ffffff;color:#ffffff">⬜ Sin Actividad</span>
+      </div>
+      <div id="vuln-grid"></div>
+    </div>
+  </div>
+
+  <!-- CALCULADORA DE EVACUACIÓN -->
+  <div id="evacuate-overlay" class="hidden">
+    <div id="evacuate-header">
+      <div id="evacuate-title">🧭 Calculadora de Evacuación</div>
+      <button id="evacuate-close">✕ Cerrar</button>
+    </div>
+    <div id="evacuate-body">
+      <div id="evacuate-intro">
+        <p>Selecciona tu región para ver las instrucciones de evacuación, puntos de encuentro y rutas seguras según el nivel de alerta actual.</p>
+      </div>
+      <div id="evacuate-selector">
+        <select id="evacuate-region">
+          <option value="">-- Selecciona tu región --</option>
+          <option value="tarapaca">Tarapacá</option>
+          <option value="antofagasta">Antofagasta</option>
+          <option value="atacama">Atacama</option>
+          <option value="coquimbo">Coquimbo</option>
+          <option value="valparaiso">Valparaíso</option>
+          <option value="metropolitana">Metropolitana</option>
+          <option value="ohiggins">O'Higgins</option>
+          <option value="maule">Maule</option>
+          <option value="nuble">Ñuble</option>
+          <option value="biobio">Biobío</option>
+          <option value="araucania">Araucanía</option>
+          <option value="los_rios">Los Ríos</option>
+          <option value="los_lagos">Los Lagos</option>
+          <option value="aysen">Aysén</option>
+          <option value="magallanes">Magallanes</option>
+        </select>
+        <button id="evacuate-btn">Ver plan de evacuación</button>
+      </div>
+      <div id="evacuate-result" class="hidden"></div>
+    </div>
+  </div>
+
+  <!-- ESTADÍSTICAS HISTÓRICAS -->
+  <div id="stats-overlay" class="hidden">
+    <div id="stats-header">
+      <div id="stats-title">📊 Estadísticas Históricas — VigilaChile</div>
+      <button id="stats-close">✕ Cerrar</button>
+    </div>
+    <div id="stats-body">
+      <div id="stats-loading">⏳ Cargando datos históricos...</div>
+    </div>
+  </div>
+
+  <!-- CLIMA E INUNDACIONES -->
+  <div id="weather-overlay" class="hidden">
+    <div id="weather-header">
+      <div id="weather-title">🌧️ Clima e Inundaciones — Chile</div>
+      <button id="weather-close">✕ Cerrar</button>
+    </div>
+    <div id="weather-body">
+      <div id="weather-loading">⏳ Cargando datos meteorológicos...</div>
+    </div>
+  </div>
+
+  <!-- PANEL INFO COMUNA -->
+  <div id="commune-panel" class="hidden">
+    <div id="commune-panel-header">
+      <div id="commune-panel-title">📍 Información local</div>
+      <button id="commune-panel-close">✕</button>
+    </div>
+    <div id="commune-panel-body">
+      <div id="commune-loading">⏳ Cargando información local...</div>
+    </div>
+  </div>
+
+  <!-- Panel detalle -->
+  <div id="detail-panel" class="hidden">
+    <button id="close-detail">✕</button>
+    <div id="detail-content"></div>
+  </div>
+
+  <!-- Toast nuevo sismo -->
+  <div id="new-quake-toast" class="hidden">
+    <div id="toast-content"></div>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
