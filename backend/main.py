@@ -180,6 +180,10 @@ def report_pdf():
     f = cached_fires()
     r = calculate_risk(q["data"], f["data"])
     t = get_trends_data()
+    v = get_volcanoes()
+    ts = get_tsunami_alerts()
+    w = cached_weather()
+    reg = calculate_region_risk(q["data"], f["data"])
     quakes_data = q["data"]
     fires_data = f["data"]
 
@@ -193,16 +197,22 @@ def report_pdf():
         top_zones[zone] = top_zones.get(zone, 0) + 1
     top_zone = max(top_zones, key=top_zones.get) if top_zones else "Chile"
 
+    volc_data = v.get("data", [])
+    volc_alerts = [x for x in volc_data if x.get("alert") != "Verde"]
+    tsun_count = ts.get("count", 0)
+
     prompt = (
-        "Eres un sismólogo experto del CSN Chile. Genera un análisis técnico ciudadano "
-        "en español de máximo 100 palabras sobre la actividad sísmica de las ÚLTIMAS 24 HORAS:\n"
-        "- Total sismos: " + str(total_quakes) + "\n"
-        "- Magnitud máxima: M" + str(max_mag) + "\n"
-        "- Focos de incendio activos: " + str(total_fires) + "\n"
-        "- Zona más activa: " + top_zone + "\n"
-        "- Índice de riesgo: " + str(r.get("score", "--")) + "/10 (" + r.get("level", "--") + ")\n"
-        "- Tendencia vs ayer: " + t.get("trend", "--") + "\n"
-        "NO uses markdown ni asteriscos. Tono técnico pero accesible y proporcional a la realidad sísmica chilena."
+        "Eres el sistema VigilaChile. Genera un analisis ejecutivo en español (maximo 150 palabras) "
+        "cubriendo TODAS las amenazas monitoreadas para incluir en un PDF profesional:\n\n"
+        "SISMOS: " + str(total_quakes) + " eventos, max M" + str(max_mag) + ", zona activa: " + top_zone + "\n"
+        "INCENDIOS: " + str(total_fires) + " focos activos NASA FIRMS\n"
+        "VOLCANES: " + str(len(volc_alerts)) + " en alerta (" + ", ".join([x["name"] + " " + x["alert"] for x in volc_alerts]) + ")\n" if volc_alerts else
+        "VOLCANES: Todos en alerta verde\n"
+        "TSUNAMI: " + ("ALERTA ACTIVA" if tsun_count > 0 else "Sin alertas") + "\n"
+        "RIESGO: " + str(r.get("score", "--")) + "/10 (" + r.get("level", "--") + ")\n"
+        "TENDENCIA: " + t.get("trend", "--") + " (" + str(t.get("percentage", 0)) + "% vs ayer)\n\n"
+        "Escribe un parrafo fluido cubriendo sismos, incendios, volcanes, tsunami y clima. "
+        "NO uses markdown ni asteriscos. Tono tecnico profesional."
     )
 
     try:
@@ -217,7 +227,7 @@ def report_pdf():
             },
             json={
                 "model": "claude-sonnet-4-6",
-                "max_tokens": 300,
+                "max_tokens": 400,
                 "messages": [{"role": "user", "content": prompt}]
             },
             timeout=20
@@ -225,13 +235,16 @@ def report_pdf():
         ai = res.json()["content"][0]["text"]
     except:
         ai = (
-            "Durante las últimas 24 horas se registraron " + str(total_quakes) +
-            " sismos en Chile, con magnitud máxima de M" + str(max_mag) +
-            ". Zona más activa: " + top_zone + ". Riesgo: " +
-            str(r.get("score", "--")) + "/10. Incendios: " + str(total_fires) + "."
+            "SISMOS: Se registraron " + str(total_quakes) + " eventos, magnitud maxima M" + str(max_mag) +
+            ", zona mas activa " + top_zone + ". " +
+            "INCENDIOS: " + str(total_fires) + " focos de calor activos. " +
+            "VOLCANES: " + (str(len(volc_alerts)) + " en alerta." if volc_alerts else "Todos en verde.") + " " +
+            "TSUNAMI: " + ("Alerta activa." if tsun_count > 0 else "Sin alertas.") + " " +
+            "Riesgo compuesto: " + str(r.get("score", "--")) + "/10 (" + r.get("level", "--") + ")."
         )
 
-    pdf_bytes = generate_pdf(quakes_data, fires_data, r, ai, t)
+    pdf_bytes = generate_pdf(quakes_data, fires_data, r, ai, t,
+                             volcanoes=v, tsunami=ts, weather=w, regions=reg)
     now_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
     return Response(
         content=pdf_bytes,
