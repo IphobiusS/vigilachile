@@ -210,7 +210,12 @@ async function liveTick() {
 }
 
 // ===== PANEL EVENTOS FLOTANTE =====
-let eventsCollapsed = false;
+// Start collapsed on mobile
+let eventsCollapsed = window.innerWidth <= 768;
+if (eventsCollapsed) {
+  document.getElementById("events-float-body").classList.add("collapsed");
+  document.getElementById("events-toggle-btn").textContent = "▼";
+}
 document.getElementById("events-float-header").addEventListener("click", function() {
   eventsCollapsed = !eventsCollapsed;
   document.getElementById("events-float-body").classList.toggle("collapsed", eventsCollapsed);

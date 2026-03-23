@@ -1086,6 +1086,7 @@ body.emergency-mode #sidebar {
   }
   #sidebar.open {
     transform: translateX(0);
+    z-index: 2000;
   }
 
   /* Map: full screen */
@@ -1118,17 +1119,34 @@ body.emergency-mode #sidebar {
   /* Events panel: full width, shorter */
   #events-float {
     right: 8px;
-    left: 8px;
-    width: auto;
+    left: auto;
+    width: 220px;
     top: 8px;
-    max-height: 35vh;
-    border-radius: 12px;
+    max-height: 40vh;
+    border-radius: 10px;
   }
   #events-float-header {
-    padding: 8px 12px;
+    padding: 6px 10px;
+  }
+  #events-float-header #live-indicator {
+    font-size: 0.55rem;
+  }
+  #events-float-header #live-last {
+    font-size: 0.6rem;
+    display: none;
   }
   #events-float-body {
-    max-height: 25vh;
+    max-height: 30vh;
+    padding: 6px;
+  }
+  #events-float-body.collapsed {
+    max-height: 0;
+    padding: 0 6px;
+    overflow: hidden;
+  }
+  #events li {
+    font-size: 0.65rem;
+    padding: 6px 8px;
   }
 
   /* AI dock: adjust for mobile */
