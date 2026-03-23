@@ -683,13 +683,20 @@ body.emergency-mode #sidebar {
   gap: 32px;
 }
 #ai-report {
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   color: var(--text-secondary);
   line-height: 1.9;
-  font-style: italic;
   flex: 1;
   max-height: 200px;
   overflow-y: auto;
+}
+.ai-section-tag {
+  display: inline-block;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  font-style: normal;
 }
 #ai-dock-footer {
   margin-top: 12px;

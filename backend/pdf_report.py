@@ -32,18 +32,24 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     now_chile = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
 
     def clean_text(text):
-        """Strip any markdown that sneaks through from the AI."""
+        """Strip any markdown and AI-generated headers from the text."""
         if not text:
             return ""
         import re
+        # Remove markdown formatting
         text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)  # **bold**
         text = re.sub(r'\*([^*]+)\*', r'\1', text)  # *italic*
         text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)  # # headers
         text = re.sub(r'^---+$', '', text, flags=re.MULTILINE)  # --- lines
         text = re.sub(r'^>\s*', '', text, flags=re.MULTILINE)  # > blockquotes
         text = re.sub(r'^-\s+', '', text, flags=re.MULTILINE)  # - bullets
-        text = text.replace('■', '').strip()
-        return text
+        # Remove AI-generated titles/headers before the actual content
+        text = re.sub(r'^.*?(REPORTE|ANÁLISIS|ANALISIS).*?(horas|actual|integral)\s*', '', text, count=1, flags=re.IGNORECASE)
+        # Remove special chars
+        text = text.replace('■', '').replace('□', '').replace('►', '').replace('●', '')
+        # Clean up extra whitespace
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        return text.strip()
 
     cell_s = ParagraphStyle("Cell", parent=styles["Normal"], fontSize=8, textColor=HexColor("#333333"), leading=10)
     cell_s_left = ParagraphStyle("CellL", parent=styles["Normal"], fontSize=8, textColor=HexColor("#333333"), leading=10, alignment=TA_LEFT)

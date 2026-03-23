@@ -995,9 +995,32 @@ async function loadAI() {
     const res = await fetch(API + "/analyze");
     const data = await res.json();
     cachedAIReport = data.report;
-    document.getElementById("ai-report").textContent = data.report;
-    // Preview: first ~80 chars in the dock bar
-    document.getElementById("ai-dock-preview").textContent = data.report.substring(0, 100) + "...";
+
+    // Clean: strip any AI-generated header before SISMOS
+    var cleanReport = data.report
+      .replace(/^.*?(REPORTE|ANÁLISIS|ANALISIS).*?(horas|actual|integral)\s*/i, "")
+      .replace(/\*\*/g, "")
+      .replace(/^#+\s*/gm, "")
+      .replace(/^---+$/gm, "")
+      .replace(/^>\s*/gm, "")
+      .replace(/■/g, "")
+      .trim();
+
+    // Highlight section keywords
+    var formatted = cleanReport
+      .replace(/\b(SISMOS):/g, '<span class="ai-section-tag">🌍 SISMOS</span>:')
+      .replace(/\b(INCENDIOS):/g, '<span class="ai-section-tag">🔥 INCENDIOS</span>:')
+      .replace(/\b(VOLCANES):/g, '<span class="ai-section-tag">🌋 VOLCANES</span>:')
+      .replace(/\b(TSUNAMI):/g, '<span class="ai-section-tag">🌊 TSUNAMI</span>:')
+      .replace(/\b(CLIMA):/g, '<span class="ai-section-tag">🌧️ CLIMA</span>:')
+      .replace(/\b(EVALUACI[ÓO]N):/gi, '<span class="ai-section-tag">📊 EVALUACIÓN</span>:');
+
+    document.getElementById("ai-report").innerHTML = formatted;
+
+    // Preview: first meaningful sentence (skip section tag)
+    var previewText = cleanReport.substring(0, 120).replace(/SISMOS:\s*/, "") + "...";
+    document.getElementById("ai-dock-preview").textContent = previewText;
+
     const trendText = data.trend === "increasing" ? "📈 Aumentando" : data.trend === "decreasing" ? "📉 Bajando" : "➡️ Estable";
     document.getElementById("ai-meta").innerHTML =
       "Zona más activa: <b>" + data.top_zone + "</b> · Últimas 6h: <b>" + data.recent_6h + "</b> · Tendencia: <b>" + trendText + "</b>";

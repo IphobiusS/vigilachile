@@ -105,16 +105,18 @@ def analyze_seismic_pattern(quakes, fires, risk, volcanoes=None, tsunami=None, w
         + clima_section +
         "=== RIESGO ===\n"
         "- Índice compuesto: " + str(risk["score"]) + "/10 (" + risk["level"] + ")\n\n"
-        "FORMATO OBLIGATORIO — usa exactamente estas secciones con títulos en mayúsculas:\n"
+        "FORMATO OBLIGATORIO — comienza DIRECTAMENTE con la seccion SISMOS, sin titulo ni encabezado previo:\n"
         "SISMOS: [resumen en 1-2 frases]\n"
         "INCENDIOS: [resumen en 1 frase]\n"
         "VOLCANES: [resumen en 1 frase]\n"
         "TSUNAMI: [resumen en 1 frase]\n"
         "CLIMA: [resumen en 1 frase]\n"
-        "EVALUACIÓN: [conclusión general y recomendación ciudadana]\n\n"
-        "REGLAS ESTRICTAS DE FORMATO: NO uses markdown, NO asteriscos (**), NO numerales (#), NO guiones como viñetas, "
-        "NO comillas de bloque (>), NO lineas horizontales (---), NO negritas, NO listas. "
-        "Solo texto plano en parrafos continuos separados por salto de linea. Tono tecnico profesional. Se conciso."
+        "EVALUACION: [conclusion general y recomendacion ciudadana]\n\n"
+        "REGLAS ESTRICTAS: "
+        "1) NO pongas titulo, encabezado, fecha ni introduccion antes de SISMOS. Empieza directamente con 'SISMOS:'. "
+        "2) NO uses markdown, asteriscos (**), numerales (#), guiones, blockquotes (>), lineas (---), negritas, listas, ni simbolos especiales. "
+        "3) Solo texto plano. Cada seccion empieza con su nombre en mayusculas seguido de dos puntos. "
+        "4) Tono tecnico profesional y conciso. Maximo 150 palabras total."
     )
 
     try:
