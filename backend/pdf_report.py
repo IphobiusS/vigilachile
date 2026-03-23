@@ -31,6 +31,23 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
 
     now_chile = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
 
+    def clean_text(text):
+        """Strip any markdown that sneaks through from the AI."""
+        if not text:
+            return ""
+        import re
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)  # **bold**
+        text = re.sub(r'\*([^*]+)\*', r'\1', text)  # *italic*
+        text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)  # # headers
+        text = re.sub(r'^---+$', '', text, flags=re.MULTILINE)  # --- lines
+        text = re.sub(r'^>\s*', '', text, flags=re.MULTILINE)  # > blockquotes
+        text = re.sub(r'^-\s+', '', text, flags=re.MULTILINE)  # - bullets
+        text = text.replace('■', '').strip()
+        return text
+
+    cell_s = ParagraphStyle("Cell", parent=styles["Normal"], fontSize=8, textColor=HexColor("#333333"), leading=10)
+    cell_s_left = ParagraphStyle("CellL", parent=styles["Normal"], fontSize=8, textColor=HexColor("#333333"), leading=10, alignment=TA_LEFT)
+
     def make_table(data, widths, header_color):
         t = Table(data, colWidths=widths)
         t.setStyle(TableStyle([
@@ -43,7 +60,8 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [HexColor("#f5f9ff"), white]),
             ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#ccddee")),
             ("FONTSIZE", (0, 1), (-1, -1), 8),
-            ("ROWHEIGHT", (0, 0), (-1, -1), 18),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ]))
         return t
 
@@ -78,7 +96,8 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     elements.append(Paragraph("Analisis IA en Tiempo Real", sec_s))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=primary))
     elements.append(Spacer(1, 6))
-    elements.append(Paragraph(ai_report if ai_report else "Analisis no disponible.", body_s))
+    cleaned_ai = clean_text(ai_report) if ai_report else "Analisis no disponible."
+    elements.append(Paragraph(cleaned_ai, body_s))
     elements.append(Spacer(1, 12))
 
     # SISMOS
@@ -89,7 +108,12 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     if major:
         qd = [["Mag.", "Lugar", "Prof.", "Hora UTC"]]
         for q in major:
-            qd.append(["M" + str(q.get("magnitude", "--")), q.get("place", "--")[:45], str(q.get("depth", "--")) + " km", str(q.get("time", "--"))[:16]])
+            qd.append([
+                "M" + str(q.get("magnitude", "--")),
+                Paragraph(q.get("place", "--"), cell_s_left),
+                str(q.get("depth", "--")) + " km",
+                str(q.get("time", "--"))[:16]
+            ])
         elements.append(make_table(qd, [2.5*cm, 8*cm, 3*cm, 3.5*cm], primary))
     else:
         elements.append(Paragraph("No se registraron sismos M4.0+ en las ultimas 24 horas.", body_s))
@@ -100,10 +124,16 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     elements.append(HRFlowable(width="100%", thickness=0.5, color=yellow_c))
     elements.append(Spacer(1, 6))
     if volc_data:
-        vd = [["Volcan", "Region", "Alerta", "Elevacion", "Observacion"]]
+        vd = [["Volcan", "Region", "Alerta", "Elev.", "Observacion"]]
         for v in volc_data:
-            vd.append([v.get("name", "--"), v.get("region", "--"), v.get("alert", "--"), str(v.get("elevation", "--")) + " m", v.get("description", "--")[:50]])
-        elements.append(make_table(vd, [2.8*cm, 2.5*cm, 2*cm, 2*cm, 5.7*cm], yellow_c))
+            vd.append([
+                v.get("name", "--"),
+                v.get("region", "--"),
+                v.get("alert", "--"),
+                str(v.get("elevation", "--")) + " m",
+                Paragraph(v.get("description", "--"), cell_s_left)
+            ])
+        elements.append(make_table(vd, [2.5*cm, 2.5*cm, 1.8*cm, 1.5*cm, 6.7*cm], yellow_c))
     else:
         elements.append(Paragraph("Sin datos de volcanes.", body_s))
     elements.append(Spacer(1, 10))

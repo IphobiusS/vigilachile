@@ -212,7 +212,9 @@ def report_pdf():
         "RIESGO: " + str(r.get("score", "--")) + "/10 (" + r.get("level", "--") + ")\n"
         "TENDENCIA: " + t.get("trend", "--") + " (" + str(t.get("percentage", 0)) + "% vs ayer)\n\n"
         "Escribe un parrafo fluido cubriendo sismos, incendios, volcanes, tsunami y clima. "
-        "NO uses markdown ni asteriscos. Tono tecnico profesional."
+        "REGLAS ESTRICTAS: NO uses markdown, NO asteriscos, NO numerales (#), NO guiones como viñetas, "
+        "NO comillas de bloque (>), NO lineas horizontales (---), NO negritas. "
+        "Solo texto plano en parrafos continuos. Tono tecnico profesional."
     )
 
     try:

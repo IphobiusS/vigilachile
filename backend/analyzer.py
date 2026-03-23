@@ -112,7 +112,9 @@ def analyze_seismic_pattern(quakes, fires, risk, volcanoes=None, tsunami=None, w
         "TSUNAMI: [resumen en 1 frase]\n"
         "CLIMA: [resumen en 1 frase]\n"
         "EVALUACIÓN: [conclusión general y recomendación ciudadana]\n\n"
-        "NO uses markdown, asteriscos ni viñetas. Tono técnico profesional. Sé conciso."
+        "REGLAS ESTRICTAS DE FORMATO: NO uses markdown, NO asteriscos (**), NO numerales (#), NO guiones como viñetas, "
+        "NO comillas de bloque (>), NO lineas horizontales (---), NO negritas, NO listas. "
+        "Solo texto plano en parrafos continuos separados por salto de linea. Tono tecnico profesional. Se conciso."
     )
 
     try:
