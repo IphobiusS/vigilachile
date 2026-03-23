@@ -8,6 +8,33 @@ const detailContent = document.getElementById("detail-content");
 const map = L.map("map", { zoomControl: true });
 map.setView([-33.5, -70.5], 5);
 
+// ===== MOBILE MENU =====
+(function() {
+  var menuBtn = document.getElementById("mobile-menu-btn");
+  var sidebar = document.getElementById("sidebar");
+  var overlay = document.getElementById("mobile-overlay");
+  function openMenu() {
+    sidebar.classList.add("open");
+    overlay.classList.add("visible");
+    overlay.classList.remove("hidden");
+    menuBtn.textContent = "✕";
+  }
+  function closeMenu() {
+    sidebar.classList.remove("open");
+    overlay.classList.remove("visible");
+    overlay.classList.add("hidden");
+    menuBtn.textContent = "☰";
+    map.invalidateSize();
+  }
+  menuBtn.addEventListener("click", function() {
+    if (sidebar.classList.contains("open")) closeMenu();
+    else openMenu();
+  });
+  overlay.addEventListener("click", closeMenu);
+  // Close sidebar when selecting a commune on mobile
+  window.closeMobileMenu = closeMenu;
+})();
+
 L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
   attribution: "©OpenStreetMap ©CartoDB",
   maxZoom: 18
@@ -1560,6 +1587,9 @@ async function loadWeather() {
   function selectCommune(c) {
     input.value = c.name;
     resultsList.classList.add("hidden");
+
+    // Close mobile sidebar if open
+    if (window.closeMobileMenu) window.closeMobileMenu();
 
     // Fly to commune
     map.flyTo([c.lat, c.lon], 11, { duration: 1.5 });
