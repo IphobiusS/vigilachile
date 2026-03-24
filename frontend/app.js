@@ -1778,7 +1778,21 @@ async function loadWeatherSummary() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js").catch(function() {});
+  navigator.serviceWorker.register("/sw.js").then(function(reg) {
+    // Force update check
+    reg.update();
+    // When new SW is waiting, tell it to activate immediately
+    if (reg.waiting) reg.waiting.postMessage("skipWaiting");
+    reg.addEventListener("updatefound", function() {
+      var newWorker = reg.installing;
+      newWorker.addEventListener("statechange", function() {
+        if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+          newWorker.postMessage("skipWaiting");
+          window.location.reload();
+        }
+      });
+    });
+  }).catch(function() {});
 }
 
 setTimeout(function() { map.invalidateSize(); }, 100);
