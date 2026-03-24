@@ -315,7 +315,7 @@ if(document.getElementById("btn-location")) document.getElementById("btn-locatio
         nearest.place + "<br>Distancia: <b>" + dist + " km</b><br>Estado: <b>" + risk + "</b>";
       speak("Tu sismo más cercano es de magnitud " + nearest.magnitude + ", a " + dist + " kilómetros.");
     }
-    if(document.getElementById("btn-location")) document.getElementById("btn-location").classList.add("active");
+    if(document.getElementById("btn-location")) if(document.getElementById("btn-location")) document.getElementById("btn-location").classList.add("active");
   }, function() { alert("No se pudo obtener tu ubicación."); });
 });
 
@@ -1436,10 +1436,10 @@ document.getElementById("toggle-heat").addEventListener("change", async function
 if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").addEventListener("click", function() {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen();
-    document.getElementById("fullscreen-btn").textContent = "⊠";
+    if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").textContent = "⊠";
   } else {
     document.exitFullscreen();
-    document.getElementById("fullscreen-btn").textContent = "⛶";
+    if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").textContent = "⛶";
   }
 });
 
