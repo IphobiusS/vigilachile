@@ -255,7 +255,7 @@ document.getElementById("ai-dock-bar").addEventListener("click", function() {
   document.getElementById("ai-dock-toggle").textContent = aiCollapsed ? "▲" : "▼";
 });
 
-document.getElementById("btn-ai").addEventListener("click", function() {
+if(document.getElementById("btn-ai")) document.getElementById("btn-ai").addEventListener("click", function() {
   const btn = document.getElementById("btn-ai");
   aiCollapsed = !aiCollapsed;
   document.getElementById("ai-dock-body").classList.toggle("collapsed", aiCollapsed);
@@ -272,7 +272,7 @@ function speak(text) {
   window.speechSynthesis.speak(utter);
 }
 
-document.getElementById("btn-voice").addEventListener("click", function() {
+if(document.getElementById("btn-voice")) document.getElementById("btn-voice").addEventListener("click", function() {
   voiceEnabled = !voiceEnabled;
   const btn = document.getElementById("btn-voice");
   btn.textContent = voiceEnabled ? "🔊" : "🔇";
@@ -290,7 +290,7 @@ function distanceKm(lat1, lon1, lat2, lon2) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 }
 
-document.getElementById("btn-location").addEventListener("click", function() {
+if(document.getElementById("btn-location")) document.getElementById("btn-location").addEventListener("click", function() {
   if (!navigator.geolocation) return alert("Tu navegador no soporta geolocalización.");
   navigator.geolocation.getCurrentPosition(function(pos) {
     const lat = pos.coords.latitude, lon = pos.coords.longitude;
@@ -312,7 +312,7 @@ document.getElementById("btn-location").addEventListener("click", function() {
         nearest.place + "<br>Distancia: <b>" + dist + " km</b><br>Estado: <b>" + risk + "</b>";
       speak("Tu sismo más cercano es de magnitud " + nearest.magnitude + ", a " + dist + " kilómetros.");
     }
-    document.getElementById("btn-location").classList.add("active");
+    if(document.getElementById("btn-location")) document.getElementById("btn-location").classList.add("active");
   }, function() { alert("No se pudo obtener tu ubicación."); });
 });
 
@@ -332,7 +332,7 @@ function getShareButtons(q) {
     "</div>";
 }
 
-document.getElementById("btn-share").addEventListener("click", function() {
+if(document.getElementById("btn-share")) document.getElementById("btn-share").addEventListener("click", function() {
   const text =
     "🛰️ VigilaChile — Monitoreo de desastres naturales en tiempo real\n" +
     "📊 " + document.getElementById("quake-count").textContent + " sismos · " +
@@ -1212,7 +1212,7 @@ function renderChart(quakes) {
     else if (q.magnitude < 6) bins["5-6"]++;
     else bins["6+"]++;
   });
-  const ctx = document.getElementById("magChart").getContext("2d");
+  var magCanvas = document.getElementById("magChart"); if(!magCanvas) return; const ctx = magCanvas.getContext("2d");
   if (magChart) magChart.destroy();
   magChart = new Chart(ctx, {
     type: "bar",
@@ -1398,13 +1398,13 @@ document.getElementById("toggle-heat").addEventListener("change", async function
   }
 });
 
-document.getElementById("fullscreen-btn").addEventListener("click", function() {
+if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").addEventListener("click", function() {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen();
-    document.getElementById("fullscreen-btn").textContent = "⊠";
+    if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").textContent = "⊠";
   } else {
     document.exitFullscreen();
-    document.getElementById("fullscreen-btn").textContent = "⛶";
+    if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").textContent = "⛶";
   }
 });
 
