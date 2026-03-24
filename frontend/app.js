@@ -44,14 +44,27 @@ L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
 function showLoading(containerId, message, submessage) {
   var el = document.getElementById(containerId);
   if (!el) return;
+  el.style.display = "flex";
+  el.style.alignItems = "center";
+  el.style.justifyContent = "center";
+  el.style.minHeight = "200px";
   el.innerHTML =
-    "<div class='loading-container'>" +
-    "<div class='loading-spinner'></div>" +
-    "<div class='loading-text'>" + (message || "Cargando datos...") + "</div>" +
-    (submessage ? "<div class='loading-subtext'>" + submessage + "</div>" : "") +
-    "<div class='loading-progress'><div class='loading-progress-bar'></div></div>" +
+    "<div style='display:flex;flex-direction:column;align-items:center;gap:16px;padding:40px 20px;grid-column:1/-1'>" +
+    "<div style='width:36px;height:36px;border:3px solid #1e2d4a;border-top:3px solid #4fc3f7;border-radius:50%;animation:spin 0.8s linear infinite'></div>" +
+    "<div style='font-size:0.85rem;color:#8a9bbc;text-align:center'>" + (message || "Cargando...") + "</div>" +
+    (submessage ? "<div style='font-size:0.72rem;color:#4a6080;text-align:center'>" + submessage + "</div>" : "") +
+    "<div style='width:180px;height:4px;background:#1e2d4a;border-radius:2px;overflow:hidden'>" +
+    "<div style='height:100%;background:#4fc3f7;border-radius:2px;animation:loadbar 2s ease-in-out infinite'></div>" +
+    "</div>" +
     "</div>";
 }
+
+// Add keyframes dynamically
+(function() {
+  var style = document.createElement("style");
+  style.textContent = "@keyframes spin{to{transform:rotate(360deg)}} @keyframes loadbar{0%{width:0;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0;margin-left:100%}}";
+  document.head.appendChild(style);
+})();
 
 let fireLayer = L.layerGroup().addTo(map);
 let quakeLayer = L.layerGroup().addTo(map);
@@ -475,11 +488,12 @@ document.getElementById("vuln-close").addEventListener("click", function() {
 
 async function loadVulnerability() {
   const grid = document.getElementById("vuln-grid");
-  grid.innerHTML = "<div style='grid-column:1/-1'></div>";
+  grid.style.display = "block";
   showLoading("vuln-grid", "Calculando índices de vulnerabilidad", "Analizando datos sísmicos y de incendios por región...");
   try {
     const res = await fetch(API + "/vulnerability");
     const json = await res.json();
+    grid.style.display = "";
     grid.innerHTML = "";
     json.data.forEach(function(r) {
       const vulnPct = Math.min(100, r.vulnerability_index);
