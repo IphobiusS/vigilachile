@@ -478,6 +478,7 @@ document.getElementById("btn-pdf").addEventListener("click", async function() {
 document.getElementById("btn-vuln").addEventListener("click", async function() {
   document.getElementById("vuln-overlay").classList.remove("hidden");
   document.getElementById("btn-vuln").classList.add("active");
+  if (window.closeMobileMenu) window.closeMobileMenu();
   await loadVulnerability();
 });
 
@@ -525,6 +526,7 @@ async function loadVulnerability() {
 document.getElementById("btn-evacuate").addEventListener("click", async function() {
   document.getElementById("evacuate-overlay").classList.remove("hidden");
   document.getElementById("btn-evacuate").classList.add("active");
+  if (window.closeMobileMenu) window.closeMobileMenu();
   if (cachedRegions.length === 0) await loadRegions();
 });
 
@@ -655,6 +657,7 @@ document.getElementById("evacuate-btn").addEventListener("click", function() {
 document.getElementById("btn-stats").addEventListener("click", async function() {
   document.getElementById("stats-overlay").classList.remove("hidden");
   document.getElementById("btn-stats").classList.add("active");
+  if (window.closeMobileMenu) window.closeMobileMenu();
   await loadStats();
 });
 
@@ -1518,6 +1521,7 @@ function setBadge(row, color, text, barPct) {
 document.getElementById("btn-weather").addEventListener("click", function() {
   document.getElementById("weather-overlay").classList.remove("hidden");
   document.getElementById("btn-weather").classList.add("active");
+  if (window.closeMobileMenu) window.closeMobileMenu();
   loadWeather();
 });
 
@@ -1778,21 +1782,7 @@ async function loadWeatherSummary() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js").then(function(reg) {
-    // Force update check
-    reg.update();
-    // When new SW is waiting, tell it to activate immediately
-    if (reg.waiting) reg.waiting.postMessage("skipWaiting");
-    reg.addEventListener("updatefound", function() {
-      var newWorker = reg.installing;
-      newWorker.addEventListener("statechange", function() {
-        if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-          newWorker.postMessage("skipWaiting");
-          window.location.reload();
-        }
-      });
-    });
-  }).catch(function() {});
+  navigator.serviceWorker.register("/sw.js").catch(function() {});
 }
 
 setTimeout(function() { map.invalidateSize(); }, 100);

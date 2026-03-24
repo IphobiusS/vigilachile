@@ -1,4 +1,4 @@
-const CACHE_NAME = "vigilachile-v6";
+const CACHE_NAME = "vigilachile-v7";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -61,20 +61,20 @@ self.addEventListener("fetch", function(e) {
     return;
   }
 
-  // Assets locales (html, css, js) — NETWORK FIRST, fallback a cache
+  // Assets locales (html, css, js) — cache first, fallback a network
   e.respondWith(
-    fetch(e.request).then(function(response) {
-      // Actualizar cache con versión nueva
-      if (response && response.status === 200) {
-        var clone = response.clone();
-        caches.open(CACHE_NAME).then(function(cache) {
-          cache.put(e.request, clone);
-        });
-      }
-      return response;
-    }).catch(function() {
-      // Sin red — servir desde cache
-      return caches.match(e.request);
+    caches.match(e.request).then(function(cached) {
+      if (cached) return cached;
+      return fetch(e.request).then(function(response) {
+        // Cachear si es válido
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(function(cache) {
+            cache.put(e.request, clone);
+          });
+        }
+        return response;
+      });
     })
   );
 });
