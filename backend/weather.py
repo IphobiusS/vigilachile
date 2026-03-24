@@ -36,37 +36,43 @@ ZONE_THRESHOLDS = {
 def get_weather_data():
     """
     Obtiene datos meteorológicos de Open-Meteo para las 15 regiones.
-    Sequential con delay para evitar 429 rate limit.
+    Usa UNA SOLA llamada con múltiples coordenadas para evitar rate limit.
     """
-    import time as _time
     results = []
     now = datetime.now(timezone.utc)
     month = now.month
     seasonal_factor = 1.4 if 5 <= month <= 8 else 1.0
 
-    for idx, region in enumerate(REGION_COORDS):
-        if idx > 0:
-            _time.sleep(0.5)
+    # Build comma-separated lat/lon for single API call
+    lats = ",".join([str(r["lat"]) for r in REGION_COORDS])
+    lons = ",".join([str(r["lon"]) for r in REGION_COORDS])
 
-        success = False
-        for attempt in range(2):
+    try:
+        url = "https://api.open-meteo.com/v1/forecast"
+        params = {
+            "latitude": lats,
+            "longitude": lons,
+            "hourly": "precipitation,precipitation_probability,windspeed_10m,windgusts_10m,temperature_2m,relativehumidity_2m",
+            "current_weather": True,
+            "timezone": "America/Santiago",
+            "forecast_days": 2,
+            "timeformat": "unixtime"
+        }
+        res = requests.get(url, params=params, timeout=30)
+        res.raise_for_status()
+        all_data = res.json()
+
+        # Multi-location returns a list of results
+        if not isinstance(all_data, list):
+            all_data = [all_data]
+
+        now_ts = now.timestamp()
+
+        for idx, region in enumerate(REGION_COORDS):
             try:
-                url = "https://api.open-meteo.com/v1/forecast"
-                params = {
-                    "latitude": region["lat"],
-                    "longitude": region["lon"],
-                    "hourly": "precipitation,precipitation_probability,windspeed_10m,windgusts_10m,temperature_2m,relativehumidity_2m",
-                    "current_weather": True,
-                    "timezone": "America/Santiago",
-                    "forecast_days": 2,
-                    "timeformat": "unixtime"
-                }
-                res = requests.get(url, params=params, timeout=8)
-                if res.status_code == 429:
-                    _time.sleep(2)
-                    continue
-                res.raise_for_status()
-                data = res.json()
+                data = all_data[idx] if idx < len(all_data) else None
+                if not data:
+                    raise ValueError("No data for region")
 
                 hourly = data.get("hourly", {})
                 times = hourly.get("time", [])
@@ -78,7 +84,6 @@ def get_weather_data():
                 humidity_h = hourly.get("relativehumidity_2m", [])
                 current = data.get("current_weather", {})
 
-                now_ts = now.timestamp()
                 current_idx = 0
                 for i, t in enumerate(times):
                     if t <= now_ts:
@@ -135,19 +140,22 @@ def get_weather_data():
                     },
                     "risk": risk
                 })
-                success = True
-                break
 
             except Exception:
-                if attempt == 0:
-                    _time.sleep(1)
-                continue
+                results.append({
+                    "id": region["id"], "name": region["name"],
+                    "lat": region["lat"], "lon": region["lon"], "zone": region["zone"],
+                    "error": "Error procesando datos",
+                    "risk": {"level": "DESCONOCIDO", "color": "#5c7a9e", "score": 0, "description": "Sin datos disponibles"}
+                })
 
-        if not success:
+    except Exception as e:
+        # Single API call failed — all regions fail
+        for region in REGION_COORDS:
             results.append({
                 "id": region["id"], "name": region["name"],
                 "lat": region["lat"], "lon": region["lon"], "zone": region["zone"],
-                "error": "No se pudo obtener datos",
+                "error": str(e),
                 "risk": {"level": "DESCONOCIDO", "color": "#5c7a9e", "score": 0, "description": "Sin datos disponibles"}
             })
 
