@@ -111,65 +111,36 @@
       <div id="heat-status" class="hidden"></div>
     </div>
 
-    <!-- Quick detail panels -->
-    <div id="quick-panels">
-      <button class="quick-btn" id="qp-quakes">
-        <span class="quick-icon">🌍</span>
-        <span class="quick-label">Sismos</span>
-        <span class="quick-count" id="qp-quakes-count">--</span>
-      </button>
-      <button class="quick-btn" id="qp-fires">
-        <span class="quick-icon">🔥</span>
-        <span class="quick-label">Incendios</span>
-        <span class="quick-count" id="qp-fires-count">--</span>
-      </button>
-      <button class="quick-btn" id="qp-volcanoes">
-        <span class="quick-icon">🌋</span>
-        <span class="quick-label">Volcanes</span>
-        <span class="quick-count" id="qp-volcanoes-count">--</span>
-      </button>
-      <button class="quick-btn" id="qp-clima">
-        <span class="quick-icon">🌡️</span>
-        <span class="quick-label">Clima</span>
-        <span class="quick-count" id="qp-clima-count">--</span>
-      </button>
+    <!-- Gráfico compacto -->
+    <div class="chart-container">
+      <canvas id="magChart" height="100"></canvas>
     </div>
 
-    <!-- Quick detail content -->
-    <div id="quick-detail" class="hidden">
-      <div id="quick-detail-header">
-        <span id="quick-detail-title"></span>
-        <button id="quick-detail-close">✕</button>
-      </div>
-      <div id="quick-detail-body"></div>
-    </div>
-
-    <!-- Action buttons -->
+    <!-- Action buttons integrados en sidebar -->
     <div id="sidebar-actions">
+      <button id="btn-location" title="Mi ubicación">📍</button>
+      <button id="btn-voice" title="Modo voz">🔇</button>
+      <button id="btn-ai" title="Análisis IA">🤖</button>
       <button id="btn-pdf" title="Descargar PDF">📄</button>
-      <button id="btn-stats" title="Estadísticas 30d">📊</button>
+      <button id="btn-stats" title="Estadísticas">📊</button>
       <button id="btn-vuln" title="Vulnerabilidad">🛡️</button>
-      <button id="btn-evacuate" title="Plan evacuación">🧭</button>
-      <button id="btn-weather" title="Clima detallado">🌧️</button>
-      <button id="btn-kiosk" title="Modo quiosco">📺</button>
-    </div>
-
-    <!-- Último evento destacado -->
-    <div id="last-event-card">
-      <div id="last-event-label">ÚLTIMO EVENTO</div>
-      <div id="last-event-content">Cargando...</div>
+      <button id="btn-evacuate" title="Evacuación">🧭</button>
+      <button id="btn-weather" title="Clima">🌧️</button>
+      <button id="btn-share" title="Compartir">🔗</button>
+      <button id="btn-kiosk" title="Quiosco TV">📺</button>
+      <button id="fullscreen-btn" title="Pantalla completa">⛶</button>
     </div>
 
     <div id="footer">
       <div id="footer-sources">CSN · NASA FIRMS · SERNAGEOMIN · USGS · WeatherAPI</div>
-      <div id="footer-credit">Desarrollado por Sebastián Latorre Muñoz</div>
+      <div id="footer-credit"><a href="https://linkedin.com/m/in/sebastian-latorre-munoz/" target="_blank" rel="noopener">Desarrollado por Sebastián Latorre Muñoz</a></div>
     </div>
   </div>
 
   <div id="map"></div>
 
-  <!-- Panel eventos (oculto) -->
-  <div id="events-float" style="display:none">
+  <!-- Panel eventos flotante (arriba derecha) -->
+  <div id="events-float">
     <div id="events-float-header">
       <div id="live-indicator"><span class="live-dot"></span> EN VIVO</div>
       <div id="live-last"></div>
