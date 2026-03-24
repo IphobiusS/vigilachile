@@ -1445,12 +1445,12 @@ if(document.getElementById("fullscreen-btn")) document.getElementById("fullscree
 
 function startCountdown() {
   let seconds = 300;
-  const footer = document.getElementById("footer");
+  const footerSources = document.getElementById("footer-sources");
   const interval = setInterval(function() {
     seconds--;
     const min = Math.floor(seconds / 60);
     const sec = seconds % 60;
-    footer.textContent = "CSN · NASA FIRMS · Próxima actualización en " + min + ":" + String(sec).padStart(2, "0");
+    if (footerSources) footerSources.textContent = "CSN · NASA FIRMS · Próxima actualización en " + min + ":" + String(sec).padStart(2, "0");
     if (seconds <= 0) { clearInterval(interval); refresh(); }
   }, 1000);
 }
