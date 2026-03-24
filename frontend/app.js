@@ -367,7 +367,7 @@ async function loadVolcanoes() {
         ).addTo(volcanoLayer);
     });
     cachedVolcanoes = json.data;
-    document.getElementById("qp-volcanoes-count").textContent = json.data.length;
+    try { document.getElementById("qp-volcanoes-count").textContent = json.data.length; } catch(e) {}
     updateThreatSummary();
   } catch(e) { console.error("Error volcanes:", e); }
 }
@@ -1071,6 +1071,10 @@ async function loadAI() {
 }
 
 // ===== QUICK DETAIL PANELS =====
+var cachedQuakesData = [];
+var cachedFiresData = [];
+var cachedWeatherAll = [];
+
 (function() {
   var detail = document.getElementById("quick-detail");
   var detailBody = document.getElementById("quick-detail-body");
@@ -1081,7 +1085,6 @@ async function loadAI() {
     detail.classList.add("hidden");
     if (activeBtn) { activeBtn.classList.remove("active"); activeBtn = null; }
   }
-
   document.getElementById("quick-detail-close").addEventListener("click", closeDetail);
 
   function togglePanel(btnId, title, renderFn) {
@@ -1092,16 +1095,14 @@ async function loadAI() {
       activeBtn = btn;
       btn.classList.add("active");
       detailTitle.textContent = title;
-      detailBody.innerHTML = "<div style='padding:20px;text-align:center;color:#5c7a9e'>Cargando...</div>";
       detail.classList.remove("hidden");
       renderFn();
     });
   }
 
-  // SISMOS panel
   togglePanel("qp-quakes", "🌍 Sismos últimas 24h", function() {
     var q = cachedQuakesData || [];
-    if (!q.length) { detailBody.innerHTML = "<div style='padding:16px;color:#5c7a9e'>Sin datos de sismos.</div>"; return; }
+    if (!q.length) { detailBody.innerHTML = "<div style='padding:16px;color:#5c7a9e'>Sin datos.</div>"; return; }
     var html = "";
     q.sort(function(a,b) { return b.magnitude - a.magnitude; });
     q.forEach(function(s) {
@@ -1114,7 +1115,6 @@ async function loadAI() {
     detailBody.innerHTML = html;
   });
 
-  // INCENDIOS panel
   togglePanel("qp-fires", "🔥 Focos de incendio activos", function() {
     var f = cachedFiresData || [];
     if (!f.length) { detailBody.innerHTML = "<div style='padding:16px;color:#5c7a9e'>Sin focos activos.</div>"; return; }
@@ -1124,15 +1124,14 @@ async function loadAI() {
       html += "<div class='qd-item' onclick='map.flyTo([" + fire.lat + "," + fire.lon + "],12)'>" +
         "<span class='qd-mag' style='color:#ff6b35'>" + fire.brightness + "K</span>" +
         "<span class='qd-place'>Lat " + fire.lat.toFixed(2) + " · Lon " + fire.lon.toFixed(2) + "</span>" +
-        "<span class='qd-meta'>Conf: " + fire.confidence + "% · " + fire.date + "</span></div>";
+        "<span class='qd-meta'>Conf: " + fire.confidence + "%</span></div>";
     });
     detailBody.innerHTML = html;
   });
 
-  // VOLCANES panel
   togglePanel("qp-volcanoes", "🌋 Volcanes monitoreados", function() {
     var v = cachedVolcanoes || [];
-    if (!v.length) { detailBody.innerHTML = "<div style='padding:16px;color:#5c7a9e'>Sin datos de volcanes.</div>"; return; }
+    if (!v.length) { detailBody.innerHTML = "<div style='padding:16px;color:#5c7a9e'>Sin datos.</div>"; return; }
     var html = "";
     v.forEach(function(vol) {
       var vc = vol.alert === "Amarilla" ? "#ffd700" : vol.alert === "Naranja" ? "#ff9500" : vol.alert === "Roja" ? "#ff3333" : "#4ade80";
@@ -1144,10 +1143,9 @@ async function loadAI() {
     detailBody.innerHTML = html;
   });
 
-  // CLIMA panel
   togglePanel("qp-clima", "🌡️ Clima por región", function() {
     var w = cachedWeatherAll || [];
-    if (!w.length) { detailBody.innerHTML = "<div style='padding:16px;color:#5c7a9e'>Sin datos de clima.</div>"; return; }
+    if (!w.length) { detailBody.innerHTML = "<div style='padding:16px;color:#5c7a9e'>Sin datos.</div>"; return; }
     var html = "";
     w.forEach(function(r) {
       if (r.error) return;
@@ -1162,11 +1160,6 @@ async function loadAI() {
     detailBody.innerHTML = html;
   });
 })();
-
-// Quick panel data references (cachedVolcanoes already declared above)
-var cachedQuakesData = [];
-var cachedFiresData = [];
-var cachedWeatherAll = [];
 
 async function loadHeatmap() {
   const status = document.getElementById("heat-status");
@@ -1323,7 +1316,7 @@ async function loadFires() {
     const json = await res.json();
     cachedFiresData = json.data;
     document.getElementById("fire-count").textContent = json.count;
-    document.getElementById("qp-fires-count").textContent = json.count;
+    try { document.getElementById("qp-fires-count").textContent = json.count; } catch(e) {}
     json.data.forEach(function(f) {
       const radius = Math.max(6, (f.brightness - 300) / 10);
       L.circleMarker([f.lat, f.lon], {
@@ -1369,7 +1362,7 @@ async function loadQuakes() {
     const json = await res.json();
     allQuakes = json.data;
     cachedQuakesData = json.data;
-    document.getElementById("qp-quakes-count").textContent = json.data.length;
+    try { document.getElementById("qp-quakes-count").textContent = json.data.length; } catch(e) {}
     if (allQuakes.length > 0 && !lastQuakeTime) {
       lastQuakeTime = allQuakes[0].time;
     }
@@ -1877,8 +1870,7 @@ async function loadWeatherSummary() {
     var res = await fetch(API + "/weather/summary");
     cachedWeatherSummary = await res.json();
     cachedWeatherAll = cachedWeatherSummary.all_regions || [];
-    var validWeather = cachedWeatherAll.filter(function(r) { return !r.error; }).length;
-    document.getElementById("qp-clima-count").textContent = validWeather;
+    try { document.getElementById("qp-clima-count").textContent = cachedWeatherAll.filter(function(r) { return !r.error; }).length; } catch(e) {}
     updateThreatSummary();
   } catch(e) { console.error("Error weather summary:", e); }
 }

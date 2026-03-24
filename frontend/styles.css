@@ -1107,19 +1107,15 @@ body.emergency-mode #sidebar {
   padding: 2px 6px;
 }
 #quick-detail-close:hover { color: var(--accent); }
-
-#quick-detail-body {
-  padding: 8px 12px;
-}
+#quick-detail-body { padding: 4px 8px; }
 .qd-item {
-  padding: 8px 10px;
+  padding: 7px 8px;
   border-bottom: 1px solid #1e2d4a33;
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   color: var(--text-secondary);
   cursor: pointer;
   transition: background 0.15s;
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 8px;
 }
@@ -1128,11 +1124,12 @@ body.emergency-mode #sidebar {
 .qd-mag {
   font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
-  min-width: 38px;
+  min-width: 42px;
+  font-size: 0.75rem;
 }
-.qd-place { flex: 1; }
-.qd-meta { font-size: 0.62rem; color: var(--text-dim); white-space: nowrap; }
-.qd-temp { font-size: 1rem; font-weight: 700; color: var(--accent); }
+.qd-place { flex: 1; font-size: 0.7rem; }
+.qd-meta { font-size: 0.6rem; color: var(--text-dim); white-space: nowrap; }
+.qd-temp { font-size: 1rem; font-weight: 700; color: var(--accent); min-width: 38px; }
 
 /* ======================================================
    RESPONSIVE — MOBILE (<768px)
