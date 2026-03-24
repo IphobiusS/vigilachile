@@ -46,7 +46,7 @@ def get_weather_data():
 
     for idx, region in enumerate(REGION_COORDS):
         if idx > 0:
-            _time.sleep(0.3)
+            _time.sleep(0.5)
 
         success = False
         for attempt in range(2):

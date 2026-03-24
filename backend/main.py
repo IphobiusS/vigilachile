@@ -36,7 +36,7 @@ app.add_middleware(
 # ===== Cache simple para evitar llamadas repetidas =====
 _cache = {}
 _cache_ttl = 60  # segundos
-_cache_ttl_weather = 1800  # 30 minutos para clima
+_cache_ttl_weather = 7200  # 2 horas para clima (evitar rate limit Open-Meteo)
 
 def get_cached(key, fn):
     now = datetime.now(timezone.utc).timestamp()
@@ -44,6 +44,13 @@ def get_cached(key, fn):
     if key in _cache and now - _cache[key]["ts"] < ttl:
         return _cache[key]["data"]
     data = fn()
+    # Don't cache weather if ALL regions have errors
+    if key == "weather":
+        valid = [r for r in data.get("data", []) if "error" not in r]
+        if len(valid) == 0 and key in _cache:
+            return _cache[key]["data"]  # return old data instead of errors
+        if len(valid) == 0:
+            return data  # no old data, return errors but don't cache
     _cache[key] = {"data": data, "ts": now}
     return data
 
@@ -61,6 +68,11 @@ def cached_weather():
 @app.get("/health")
 def health():
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+@app.get("/cache/clear")
+def cache_clear():
+    _cache.clear()
+    return {"status": "cache cleared"}
 
 @app.get("/quakes")
 def quakes():
@@ -203,14 +215,13 @@ def report_pdf():
     volc_alerts = [x for x in volc_data if x.get("alert") != "Verde"]
     tsun_count = ts.get("count", 0)
 
-    volc_str = "VOLCANES: " + str(len(volc_alerts)) + " en alerta (" + ", ".join([x["name"] + " " + x["alert"] for x in volc_alerts]) + ")" if volc_alerts else "VOLCANES: Todos en alerta verde"
-
     prompt = (
         "Eres el sistema VigilaChile. Genera un analisis ejecutivo en español (maximo 150 palabras) "
         "cubriendo TODAS las amenazas monitoreadas para incluir en un PDF profesional:\n\n"
         "SISMOS: " + str(total_quakes) + " eventos, max M" + str(max_mag) + ", zona activa: " + top_zone + "\n"
         "INCENDIOS: " + str(total_fires) + " focos activos NASA FIRMS\n"
-        + volc_str + "\n"
+        "VOLCANES: " + str(len(volc_alerts)) + " en alerta (" + ", ".join([x["name"] + " " + x["alert"] for x in volc_alerts]) + ")\n" if volc_alerts else
+        "VOLCANES: Todos en alerta verde\n"
         "TSUNAMI: " + ("ALERTA ACTIVA" if tsun_count > 0 else "Sin alertas") + "\n"
         "RIESGO: " + str(r.get("score", "--")) + "/10 (" + r.get("level", "--") + ")\n"
         "TENDENCIA: " + t.get("trend", "--") + " (" + str(t.get("percentage", 0)) + "% vs ayer)\n\n"
@@ -343,26 +354,19 @@ def commune_info(lat: float, lon: float):
 
 @app.get("/history")
 def history():
-    # Check cache first (history data doesn't change often)
-    cached = get_cached("history", lambda: _fetch_history())
-    return cached
-
-def _fetch_history():
-    from concurrent.futures import ThreadPoolExecutor, as_completed
     quakes = []
     now = datetime.now(timezone.utc)
-    dates = [(now - timedelta(days=i)).strftime("%Y%m%d") for i in range(1, 31)]
-
-    def fetch_date(date):
+    for i in range(1, 31):
+        date = (now - timedelta(days=i)).strftime("%Y%m%d")
         try:
             res = requests.get(
                 "https://api.xor.cl/sismo/historic/" + date,
-                timeout=4
+                timeout=5
             )
-            results = []
-            for s in res.json().get("events", []):
+            data = res.json()
+            for s in data.get("events", []):
                 try:
-                    results.append({
+                    quakes.append({
                         "lat": float(s["latitude"]),
                         "lon": float(s["longitude"]),
                         "magnitude": float(s["magnitude"]["value"]),
@@ -372,14 +376,6 @@ def _fetch_history():
                     })
                 except:
                     continue
-            return results
         except:
-            return []
-
-    # Fetch 5 dates concurrently instead of 30 sequential
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        futures = {executor.submit(fetch_date, d): d for d in dates}
-        for future in as_completed(futures):
-            quakes.extend(future.result())
-
+            continue
     return {"count": len(quakes), "data": quakes}
