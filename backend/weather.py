@@ -36,37 +36,27 @@ ZONE_THRESHOLDS = {
 def get_weather_data():
     """
     Obtiene datos meteorológicos de Open-Meteo para las 15 regiones.
-    Incluye precipitación actual, acumulada 24h, pronóstico 48h y variables de riesgo.
+    Usa requests paralelos para velocidad.
     """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     results = []
     now = datetime.now(timezone.utc)
     month = now.month
-    # Factor estacional — invierno austral (mayo-agosto) = más riesgo
     seasonal_factor = 1.4 if 5 <= month <= 8 else 1.0
 
-    for region in REGION_COORDS:
+    def fetch_region(region):
         try:
             url = "https://api.open-meteo.com/v1/forecast"
             params = {
                 "latitude": region["lat"],
                 "longitude": region["lon"],
-                "hourly": [
-                    "precipitation",
-                    "precipitation_probability",
-                    "rain",
-                    "snowfall",
-                    "windspeed_10m",
-                    "windgusts_10m",
-                    "temperature_2m",
-                    "relativehumidity_2m",
-                    "weathercode"
-                ],
+                "hourly": "precipitation,precipitation_probability,rain,snowfall,windspeed_10m,windgusts_10m,temperature_2m,relativehumidity_2m,weathercode",
                 "current_weather": True,
                 "timezone": "America/Santiago",
-                "forecast_days": 3,
+                "forecast_days": 2,
                 "timeformat": "unixtime"
             }
-            res = requests.get(url, params=params, timeout=10)
+            res = requests.get(url, params=params, timeout=8)
             res.raise_for_status()
             data = res.json()
 
@@ -74,8 +64,6 @@ def get_weather_data():
             times = hourly.get("time", [])
             precip = hourly.get("precipitation", [])
             precip_prob = hourly.get("precipitation_probability", [])
-            rain = hourly.get("rain", [])
-            snowfall = hourly.get("snowfall", [])
             wind = hourly.get("windspeed_10m", [])
             gusts = hourly.get("windgusts_10m", [])
             temp = hourly.get("temperature_2m", [])
@@ -84,29 +72,21 @@ def get_weather_data():
             current = data.get("current_weather", {})
 
             now_ts = now.timestamp()
-
-            # Encontrar índice de hora actual
             current_idx = 0
             for i, t in enumerate(times):
                 if t <= now_ts:
                     current_idx = i
 
-            # Precipitación actual (hora actual)
             precip_now = float(precip[current_idx]) if current_idx < len(precip) else 0
-
-            # Acumulado últimas 24h
             precip_24h = sum(
                 float(precip[i]) for i in range(max(0, current_idx - 23), current_idx + 1)
                 if i < len(precip)
             )
-
-            # Acumulado últimas 72h
             precip_72h = sum(
                 float(precip[i]) for i in range(max(0, current_idx - 71), current_idx + 1)
                 if i < len(precip)
             )
 
-            # Pronóstico próximas 48h (lista horaria)
             forecast_48h = []
             for i in range(current_idx + 1, min(current_idx + 49, len(times))):
                 forecast_48h.append({
@@ -116,24 +96,15 @@ def get_weather_data():
                     "weathercode": int(weathercode[i]) if i < len(weathercode) else 0
                 })
 
-            # Máxima precipitación esperada próximas 48h
-            max_forecast_precip = max(
-                [h["precipitation"] for h in forecast_48h], default=0
-            )
-            max_forecast_prob = max(
-                [h["probability"] for h in forecast_48h], default=0
-            )
-
-            # Acumulado proyectado próximas 48h
+            max_forecast_precip = max([h["precipitation"] for h in forecast_48h], default=0)
+            max_forecast_prob = max([h["probability"] for h in forecast_48h], default=0)
             precip_forecast_total = sum(h["precipitation"] for h in forecast_48h)
 
-            # Viento actual
             wind_now = float(wind[current_idx]) if current_idx < len(wind) else 0
             gust_now = float(gusts[current_idx]) if current_idx < len(gusts) else 0
             temp_now = float(temp[current_idx]) if current_idx < len(temp) else 0
             humidity_now = float(humidity[current_idx]) if current_idx < len(humidity) else 0
 
-            # Calcular índice de riesgo hídrico
             risk = calculate_hydro_risk(
                 region=region,
                 precip_now=precip_now,
@@ -147,7 +118,7 @@ def get_weather_data():
                 seasonal_factor=seasonal_factor
             )
 
-            results.append({
+            return {
                 "id": region["id"],
                 "name": region["name"],
                 "lat": region["lat"],
@@ -169,13 +140,13 @@ def get_weather_data():
                     "next_48h_total_mm": round(precip_forecast_total, 2),
                     "max_hourly_mm": round(max_forecast_precip, 2),
                     "max_probability_pct": max_forecast_prob,
-                    "hourly": forecast_48h[:24]  # solo próximas 24h para no sobrecargar
+                    "hourly": forecast_48h[:24]
                 },
                 "risk": risk
-            })
+            }
 
         except Exception as e:
-            results.append({
+            return {
                 "id": region["id"],
                 "name": region["name"],
                 "lat": region["lat"],
@@ -188,7 +159,17 @@ def get_weather_data():
                     "score": 0,
                     "description": "Sin datos disponibles"
                 }
-            })
+            }
+
+    # Fetch 5 regions concurrently
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(fetch_region, r): r for r in REGION_COORDS}
+        for future in as_completed(futures):
+            results.append(future.result())
+
+    # Sort by original order
+    order = {r["id"]: i for i, r in enumerate(REGION_COORDS)}
+    results.sort(key=lambda x: order.get(x["id"], 99))
 
     return {"count": len(results), "data": results, "updated": now.isoformat()}
 
