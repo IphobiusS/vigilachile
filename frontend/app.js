@@ -40,6 +40,19 @@ L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
   maxZoom: 18
 }).addTo(map);
 
+// ===== LOADING HELPER =====
+function showLoading(containerId, message, submessage) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML =
+    "<div class='loading-container'>" +
+    "<div class='loading-spinner'></div>" +
+    "<div class='loading-text'>" + (message || "Cargando datos...") + "</div>" +
+    (submessage ? "<div class='loading-subtext'>" + submessage + "</div>" : "") +
+    "<div class='loading-progress'><div class='loading-progress-bar'></div></div>" +
+    "</div>";
+}
+
 let fireLayer = L.layerGroup().addTo(map);
 let quakeLayer = L.layerGroup().addTo(map);
 let riskLayer = L.layerGroup().addTo(map);
@@ -462,7 +475,8 @@ document.getElementById("vuln-close").addEventListener("click", function() {
 
 async function loadVulnerability() {
   const grid = document.getElementById("vuln-grid");
-  grid.innerHTML = "<div style='color:#5c7a9e;padding:20px;grid-column:1/-1'>⏳ Calculando índices de vulnerabilidad...</div>";
+  grid.innerHTML = "<div style='grid-column:1/-1'></div>";
+  showLoading("vuln-grid", "Calculando índices de vulnerabilidad", "Analizando datos sísmicos y de incendios por región...");
   try {
     const res = await fetch(API + "/vulnerability");
     const json = await res.json();
@@ -489,7 +503,7 @@ async function loadVulnerability() {
       grid.appendChild(card);
     });
   } catch(e) {
-    document.getElementById("vuln-grid").innerHTML = "<div style='color:#ff6666;padding:20px;grid-column:1/-1'>❌ Error cargando datos de vulnerabilidad.</div>";
+    document.getElementById("vuln-grid").innerHTML = "<div style='grid-column:1/-1'><div class='loading-container'><div class='loading-text'>❌ Error cargando vulnerabilidad</div></div></div>";
   }
 }
 
@@ -550,7 +564,7 @@ document.getElementById("evacuate-btn").addEventListener("click", function() {
       "Mantente informado a través del Centro Sismológico Nacional"
     ]
   },
-  "VERDE ALERTA": {
+  "ALERTA VERDE": {
     icon: "🟢", title: "ALERTA VERDE — Actividad leve, sin preocupación",
     steps: [
       "Actividad sísmica leve y dentro de rangos normales para Chile",
@@ -641,7 +655,8 @@ document.getElementById("stats-close").addEventListener("click", function() {
 
 async function loadStats() {
   const body = document.getElementById("stats-body");
-  body.innerHTML = "<div id='stats-loading'>⏳ Cargando datos históricos de 30 días...</div>";
+  body.innerHTML = "";
+  showLoading("stats-body", "Cargando estadísticas históricas", "Descargando datos de 30 días desde CSN...");
   // Limpiar charts previos
   Object.keys(statsCharts).forEach(function(k) {
     if (statsCharts[k]) { statsCharts[k].destroy(); delete statsCharts[k]; }
@@ -727,7 +742,7 @@ async function loadStats() {
 
   } catch(e) {
     document.getElementById("stats-body").innerHTML =
-      "<div id='stats-loading'>❌ Error cargando estadísticas. Verifica que el backend esté corriendo.</div>";
+      "<div class='loading-container'><div class='loading-text'>❌ Error cargando estadísticas</div><div class='loading-subtext'>El servidor puede tardar en procesar 30 días de datos.</div></div>";
   }
 }
 
@@ -1340,7 +1355,7 @@ function updateThreatSummary() {
     var rojas = cachedRegions.filter(function(r) { return r.level === "ROJA"; }).length;
     var naranjas = cachedRegions.filter(function(r) { return r.level === "NARANJA"; }).length;
     var amarillas = cachedRegions.filter(function(r) { return r.level === "AMARILLA"; }).length;
-    var verdeAlerta = cachedRegions.filter(function(r) { return r.level === "VERDE ALERTA"; }).length;
+    var verdeAlerta = cachedRegions.filter(function(r) { return r.level === "ALERTA VERDE"; }).length;
     if (rojas > 0) { regColor = "#ff3333"; regText = rojas + " en alerta roja"; }
     else if (naranjas > 0) { regColor = "#ff9500"; regText = naranjas + " en alerta naranja"; }
     else if (amarillas > 0) { regColor = "#ffd700"; regText = amarillas + " en alerta amarilla"; }
@@ -1423,11 +1438,11 @@ function setBadge(row, color, text, barPct) {
     if (type === "reg") {
       if (!cachedRegions.length) return "<div class='tt-header'>🗺️ Regiones</div><div class='tt-item'>Calculando...</div>";
       var html = "<div class='tt-header'>🗺️ Semáforo Regiones</div>";
-      var groups = { "ROJA": [], "NARANJA": [], "AMARILLA": [], "VERDE ALERTA": [] };
+      var groups = { "ROJA": [], "NARANJA": [], "AMARILLA": [], "ALERTA VERDE": [] };
       cachedRegions.forEach(function(r) {
         if (groups[r.level]) groups[r.level].push(r.name);
       });
-      var colors = { "ROJA": "#ff3333", "NARANJA": "#ff9500", "AMARILLA": "#ffd700", "VERDE ALERTA": "#4ade80" };
+      var colors = { "ROJA": "#ff3333", "NARANJA": "#ff9500", "AMARILLA": "#ffd700", "ALERTA VERDE": "#4ade80" };
       var any = false;
       Object.keys(groups).forEach(function(level) {
         if (groups[level].length > 0) {
@@ -1498,10 +1513,10 @@ document.getElementById("weather-close").addEventListener("click", function() {
 });
 
 async function loadWeather() {
-  var body = document.getElementById("weather-body");
-  body.innerHTML = "<div id='weather-loading'>⏳ Cargando datos meteorológicos de 15 regiones...</div>";
+  showLoading("weather-body", "Consultando datos meteorológicos", "Conectando con Open-Meteo para 15 regiones de Chile...");
   try {
     var res = await fetch(API + "/weather");
+    if (!res.ok) throw new Error("Error " + res.status);
     var json = await res.json();
     cachedWeatherSummary = null;
     try {
@@ -1510,7 +1525,12 @@ async function loadWeather() {
       updateThreatSummary();
     } catch(e) {}
 
-    body.innerHTML = "<div id='weather-grid'></div>";
+    if (!json.data || json.data.length === 0) {
+      document.getElementById("weather-body").innerHTML = "<div class='loading-container'><div class='loading-text'>Sin datos meteorológicos disponibles en este momento.</div></div>";
+      return;
+    }
+
+    document.getElementById("weather-body").innerHTML = "<div id='weather-grid'></div>";
     var grid = document.getElementById("weather-grid");
     json.data.forEach(function(r) {
       if (r.error) return;
@@ -1539,7 +1559,7 @@ async function loadWeather() {
       grid.appendChild(card);
     });
   } catch(e) {
-    body.innerHTML = "<div id='weather-loading'>❌ Error cargando datos meteorológicos.</div>";
+    document.getElementById("weather-body").innerHTML = "<div class='loading-container'><div class='loading-text'>❌ Error cargando datos meteorológicos</div><div class='loading-subtext'>El servidor puede estar procesando otras solicitudes. Intenta en unos segundos.</div></div>";
   }
 }
 

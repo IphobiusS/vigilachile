@@ -138,7 +138,7 @@ def calculate_region_risk(quakes, fires):
             level = "AMARILLA"
             color = "#ffd700"
         elif max_mag >= 4.0 or count_24h >= 8:
-            level = "VERDE ALERTA"
+            level = "ALERTA VERDE"
             color = "#4ade80"
         else:
             level = "VERDE"
