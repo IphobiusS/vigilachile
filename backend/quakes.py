@@ -1,10 +1,6 @@
 import requests
 from datetime import datetime, timezone, timedelta
 
-# Chile timezone: UTC-3 (CLT standard) / UTC-4 (CLST summer)
-# Chile uses UTC-3 most of the year since 2019
-CHILE_TZ = timezone(timedelta(hours=-3))
-
 def get_quakes():
     url = "https://api.xor.cl/sismo/recent"
     try:
@@ -12,10 +8,9 @@ def get_quakes():
         response.raise_for_status()
         data = response.json()
 
-        # Use Chile's midnight as cutoff, not rolling 24h UTC
-        now_chile = datetime.now(CHILE_TZ)
-        chile_midnight = now_chile.replace(hour=0, minute=0, second=0, microsecond=0)
-        cutoff = chile_midnight.astimezone(timezone.utc)
+        # Rolling 24h window — always show last 24 hours of seismic activity
+        now = datetime.now(timezone.utc)
+        cutoff_24h = now - timedelta(hours=24)
 
         quakes = []
         for sismo in data.get("events", []):
@@ -24,7 +19,7 @@ def get_quakes():
                 if time_str:
                     try:
                         t = datetime.fromisoformat(time_str.replace(" ", "T")).replace(tzinfo=timezone.utc)
-                        if t < cutoff:
+                        if t < cutoff_24h:
                             continue
                     except:
                         pass

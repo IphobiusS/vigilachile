@@ -130,13 +130,15 @@ def check_alerts():
     return {"checked": len(q["data"]), "triggered": triggered}
 
 def get_trends_data():
-    now = datetime.now(timezone.utc)
+    # Use Chile timezone (UTC-3) for "today" and "yesterday"
+    CHILE_TZ = timezone(timedelta(hours=-3))
+    now_chile = datetime.now(CHILE_TZ)
     today_count = 0
     yesterday_count = 0
     today_max = 0.0
     yesterday_max = 0.0
     for i in range(2):
-        date = (now - timedelta(days=i)).strftime("%Y%m%d")
+        date = (now_chile - timedelta(days=i)).strftime("%Y%m%d")
         try:
             res = requests.get(
                 "https://api.xor.cl/sismo/historic/" + date,
