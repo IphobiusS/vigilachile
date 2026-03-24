@@ -140,9 +140,12 @@ def calculate_region_risk(quakes, fires):
         elif max_mag >= 4.0 or count_24h >= 8:
             level = "ALERTA VERDE"
             color = "#4ade80"
-        else:
+        elif count_24h > 0:
             level = "VERDE"
-            color = "#ffffff"
+            color = "#22c55e"
+        else:
+            level = "SIN ACTIVIDAD"
+            color = "#5c7a9e"
 
         results.append({
             "id": region["id"],

@@ -478,7 +478,6 @@ document.getElementById("btn-pdf").addEventListener("click", async function() {
 document.getElementById("btn-vuln").addEventListener("click", async function() {
   document.getElementById("vuln-overlay").classList.remove("hidden");
   document.getElementById("btn-vuln").classList.add("active");
-  if (window.closeMobileMenu) window.closeMobileMenu();
   await loadVulnerability();
 });
 
@@ -526,7 +525,6 @@ async function loadVulnerability() {
 document.getElementById("btn-evacuate").addEventListener("click", async function() {
   document.getElementById("evacuate-overlay").classList.remove("hidden");
   document.getElementById("btn-evacuate").classList.add("active");
-  if (window.closeMobileMenu) window.closeMobileMenu();
   if (cachedRegions.length === 0) await loadRegions();
 });
 
@@ -590,9 +588,18 @@ document.getElementById("evacuate-btn").addEventListener("click", function() {
     ]
   },
   "VERDE": {
-    icon: "✅", title: "SIN ACTIVIDAD — Situación normal",
+    icon: "🟢", title: "VERDE — Actividad mínima normal",
     steps: [
-      "Sin actividad sísmica significativa en las últimas 24 horas",
+      "Actividad sísmica mínima, completamente normal para Chile",
+      "No se requiere ninguna acción especial",
+      "Como siempre, es bueno tener preparado un plan de emergencia familiar",
+      "Puedes revisar tus datos sísmicos en sismologia.cl"
+    ]
+  },
+  "SIN ACTIVIDAD": {
+    icon: "⚪", title: "SIN ACTIVIDAD — Sin registros recientes",
+    steps: [
+      "Sin actividad sísmica registrada en las últimas 24 horas",
       "Situación completamente normal para la región",
       "Aprovecha para revisar tu kit de emergencia si no lo has hecho",
       "Recuerda: en Chile siempre es bueno estar preparado"
@@ -657,7 +664,6 @@ document.getElementById("evacuate-btn").addEventListener("click", function() {
 document.getElementById("btn-stats").addEventListener("click", async function() {
   document.getElementById("stats-overlay").classList.remove("hidden");
   document.getElementById("btn-stats").classList.add("active");
-  if (window.closeMobileMenu) window.closeMobileMenu();
   await loadStats();
 });
 
@@ -1377,8 +1383,8 @@ function updateThreatSummary() {
     else if (naranjas > 0) { regColor = "#ff9500"; regText = naranjas + " en alerta naranja"; }
     else if (amarillas > 0) { regColor = "#ffd700"; regText = amarillas + " en alerta amarilla"; }
     else if (verdeAlerta > 0) { regColor = "#4ade80"; regText = verdeAlerta + " en alerta verde"; }
-    else { regColor = "#ffffff"; regText = "Sin actividad"; }
-    var alertedRegs = cachedRegions.filter(function(r) { return r.level !== "VERDE"; }).length;
+    else { regColor = "#5c7a9e"; regText = "Sin actividad"; }
+    var alertedRegs = cachedRegions.filter(function(r) { return r.level !== "VERDE" && r.level !== "SIN ACTIVIDAD"; }).length;
     regBarPct = Math.round((alertedRegs / cachedRegions.length) * 100);
   }
   setBadge(rows[3], regColor, regText, regBarPct);
@@ -1521,7 +1527,6 @@ function setBadge(row, color, text, barPct) {
 document.getElementById("btn-weather").addEventListener("click", function() {
   document.getElementById("weather-overlay").classList.remove("hidden");
   document.getElementById("btn-weather").classList.add("active");
-  if (window.closeMobileMenu) window.closeMobileMenu();
   loadWeather();
 });
 
@@ -1687,18 +1692,28 @@ async function loadWeather() {
       var data = await res.json();
       var html = "";
 
-      // Clima
+      // Clima — SIEMPRE primero y destacado
       if (data.weather && data.weather.current) {
         var w = data.weather;
+        var curr = w.current;
         var rc = w.risk ? w.risk.color : "#5c7a9e";
-        html += "<div class='cp-section'>" +
-          "<div class='cp-section-title'>🌡️ Clima actual</div>" +
+        var rl = w.risk ? w.risk.level : "Sin datos";
+        var acc = w.accumulated || {};
+        var fcast = w.forecast || {};
+        html += "<div class='cp-section' style='background:#0d122680;border:1px solid #1e2d4a;border-radius:10px;padding:12px'>" +
+          "<div class='cp-section-title'>🌡️ CLIMA ACTUAL — " + (w.name || c.region) + "</div>" +
           "<div class='cp-weather-grid'>" +
-            "<div class='cp-weather-item'><span class='cp-weather-value'>" + w.current.temperature_c + "°C</span><span class='cp-weather-label'>Temperatura</span></div>" +
-            "<div class='cp-weather-item'><span class='cp-weather-value'>" + w.current.precipitation_mm + " mm</span><span class='cp-weather-label'>Lluvia</span></div>" +
-            "<div class='cp-weather-item'><span class='cp-weather-value'>" + w.current.wind_kmh + " km/h</span><span class='cp-weather-label'>Viento</span></div>" +
-            "<div class='cp-weather-item'><span class='cp-weather-value' style='color:" + rc + "'>" + (w.risk ? w.risk.level : "--") + "</span><span class='cp-weather-label'>Riesgo hídrico</span></div>" +
-          "</div></div>";
+            "<div class='cp-weather-item'><span class='cp-weather-value' style='font-size:1.3rem;color:#4fc3f7'>" + curr.temperature_c + "°C</span><span class='cp-weather-label'>Temperatura</span></div>" +
+            "<div class='cp-weather-item'><span class='cp-weather-value'>" + curr.wind_kmh + " km/h</span><span class='cp-weather-label'>Viento</span></div>" +
+            "<div class='cp-weather-item'><span class='cp-weather-value'>" + curr.humidity_pct + "%</span><span class='cp-weather-label'>Humedad</span></div>" +
+            "<div class='cp-weather-item'><span class='cp-weather-value'>" + curr.precipitation_mm + " mm/h</span><span class='cp-weather-label'>Lluvia actual</span></div>" +
+            "<div class='cp-weather-item'><span class='cp-weather-value'>" + (acc.last_24h_mm || 0) + " mm</span><span class='cp-weather-label'>Acum. 24h</span></div>" +
+            "<div class='cp-weather-item'><span class='cp-weather-value' style='color:" + rc + "'>" + rl + "</span><span class='cp-weather-label'>Riesgo hídrico</span></div>" +
+          "</div>" +
+          (fcast.next_48h_total_mm > 0 ? "<div style='font-size:0.68rem;color:#5c7a9e;margin-top:6px'>📊 Pronóstico 48h: " + fcast.next_48h_total_mm + " mm · Prob. máx: " + (fcast.max_probability_pct || 0) + "%</div>" : "") +
+          "</div>";
+      } else {
+        html += "<div class='cp-section'><div class='cp-section-title'>🌡️ CLIMA</div><div class='cp-empty'>Datos meteorológicos no disponibles para esta zona.</div></div>";
       }
 
       // Sismos
