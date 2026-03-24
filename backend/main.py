@@ -203,13 +203,14 @@ def report_pdf():
     volc_alerts = [x for x in volc_data if x.get("alert") != "Verde"]
     tsun_count = ts.get("count", 0)
 
+    volc_str = "VOLCANES: " + str(len(volc_alerts)) + " en alerta (" + ", ".join([x["name"] + " " + x["alert"] for x in volc_alerts]) + ")" if volc_alerts else "VOLCANES: Todos en alerta verde"
+
     prompt = (
         "Eres el sistema VigilaChile. Genera un analisis ejecutivo en español (maximo 150 palabras) "
         "cubriendo TODAS las amenazas monitoreadas para incluir en un PDF profesional:\n\n"
         "SISMOS: " + str(total_quakes) + " eventos, max M" + str(max_mag) + ", zona activa: " + top_zone + "\n"
         "INCENDIOS: " + str(total_fires) + " focos activos NASA FIRMS\n"
-        "VOLCANES: " + str(len(volc_alerts)) + " en alerta (" + ", ".join([x["name"] + " " + x["alert"] for x in volc_alerts]) + ")\n" if volc_alerts else
-        "VOLCANES: Todos en alerta verde\n"
+        + volc_str + "\n"
         "TSUNAMI: " + ("ALERTA ACTIVA" if tsun_count > 0 else "Sin alertas") + "\n"
         "RIESGO: " + str(r.get("score", "--")) + "/10 (" + r.get("level", "--") + ")\n"
         "TENDENCIA: " + t.get("trend", "--") + " (" + str(t.get("percentage", 0)) + "% vs ayer)\n\n"
@@ -342,19 +343,26 @@ def commune_info(lat: float, lon: float):
 
 @app.get("/history")
 def history():
+    # Check cache first (history data doesn't change often)
+    cached = get_cached("history", lambda: _fetch_history())
+    return cached
+
+def _fetch_history():
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     quakes = []
     now = datetime.now(timezone.utc)
-    for i in range(1, 31):
-        date = (now - timedelta(days=i)).strftime("%Y%m%d")
+    dates = [(now - timedelta(days=i)).strftime("%Y%m%d") for i in range(1, 31)]
+
+    def fetch_date(date):
         try:
             res = requests.get(
                 "https://api.xor.cl/sismo/historic/" + date,
-                timeout=5
+                timeout=4
             )
-            data = res.json()
-            for s in data.get("events", []):
+            results = []
+            for s in res.json().get("events", []):
                 try:
-                    quakes.append({
+                    results.append({
                         "lat": float(s["latitude"]),
                         "lon": float(s["longitude"]),
                         "magnitude": float(s["magnitude"]["value"]),
@@ -364,6 +372,14 @@ def history():
                     })
                 except:
                     continue
+            return results
         except:
-            continue
+            return []
+
+    # Fetch 5 dates concurrently instead of 30 sequential
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(fetch_date, d): d for d in dates}
+        for future in as_completed(futures):
+            quakes.extend(future.result())
+
     return {"count": len(quakes), "data": quakes}
