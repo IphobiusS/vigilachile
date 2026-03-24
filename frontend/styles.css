@@ -865,7 +865,7 @@ body.emergency-mode #sidebar {
 /* ===== OVERLAYS COMPARTIDOS ===== */
 #vuln-overlay, #evacuate-overlay, #stats-overlay, #weather-overlay {
   position: fixed; inset: 0; background: var(--bg-deep);
-  z-index: 7000; display: flex; flex-direction: column; overflow-y: auto;
+  z-index: 7000; display: flex; flex-direction: column;
 }
 #vuln-overlay.hidden, #evacuate-overlay.hidden, #stats-overlay.hidden, #weather-overlay.hidden { display: none; }
 
@@ -881,7 +881,11 @@ body.emergency-mode #sidebar {
 }
 #vuln-close:hover, #evacuate-close:hover, #stats-close:hover, #weather-close:hover { border-color: var(--accent); color: var(--accent); }
 
-#vuln-body, #weather-body { padding: 28px 36px; display: flex; flex-direction: column; gap: 24px; }
+#vuln-body, #weather-body {
+  padding: 28px 36px 60px;
+  display: flex; flex-direction: column; gap: 24px;
+  flex: 1; overflow-y: auto;
+}
 #vuln-legend { display: flex; gap: 12px; flex-wrap: wrap; }
 .vuln-badge { padding: 5px 14px; border: 1px solid; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
 #vuln-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
@@ -901,8 +905,9 @@ body.emergency-mode #sidebar {
 .vuln-communes { font-size: 0.68rem; color: var(--text-dim); margin-top: 10px; }
 
 #evacuate-body {
-  padding: 28px 36px; display: flex; flex-direction: column;
+  padding: 28px 36px 60px; display: flex; flex-direction: column;
   gap: 20px; max-width: 800px; margin: 0 auto; width: 100%;
+  flex: 1; overflow-y: auto;
 }
 #evacuate-intro p { font-size: 0.92rem; color: var(--text-secondary); line-height: 1.7; }
 #evacuate-selector { display: flex; gap: 12px; align-items: center; }
@@ -931,7 +936,7 @@ body.emergency-mode #sidebar {
 .evacuate-section ul { padding-left: 18px; }
 .evacuate-alert-box { border-radius: var(--radius-md); padding: 16px 18px; margin-bottom: 10px; font-size: 0.86rem; line-height: 1.6; }
 
-#stats-body { padding: 28px 36px; display: flex; flex-direction: column; gap: 24px; }
+#stats-body { padding: 28px 36px 60px; display: flex; flex-direction: column; gap: 24px; flex: 1; overflow-y: auto; }
 #stats-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .stats-card {
   background: var(--bg-card); border: 1px solid var(--border);
@@ -1063,24 +1068,16 @@ body.emergency-mode #sidebar {
 }
 #mobile-overlay.visible { display: block; }
 
-
-/* ======================================================
-   RESPONSIVE — MOBILE
-   ====================================================== */
-
 @media (max-width: 768px) {
   /* Show mobile menu button */
   #mobile-menu-btn { display: flex; }
-
-  /* Body: vertical layout */
-  body { flex-direction: column; }
 
   /* Sidebar: off-screen drawer */
   #sidebar {
     position: fixed;
     top: 0; left: 0; bottom: 0;
-    width: 82vw;
-    max-width: 360px;
+    width: 85vw;
+    max-width: 380px;
     min-width: unset;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
@@ -1089,195 +1086,175 @@ body.emergency-mode #sidebar {
     height: 100dvh;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 14px 12px;
-    gap: 8px;
+    padding: 16px 14px;
+    gap: 10px;
   }
   #sidebar.open {
     transform: translateX(0);
     z-index: 2000;
   }
 
-  /* Logo: compact */
-  #logo h1 { font-size: 1rem; }
-  #logo p { font-size: 0.62rem; }
-
   /* Map: full screen */
   #map {
     width: 100vw;
     height: 100vh;
     height: 100dvh;
-    position: fixed;
-    top: 0; left: 0;
   }
 
-  /* Stats grid: 2x2 compact */
+  /* Stats grid: 2x2 on mobile */
   #stats-grid {
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 8px;
   }
-  .stat-card { padding: 10px; }
-  .stat-number { font-size: 1.1rem; }
-  .stat-label { font-size: 0.5rem; }
-  .stat-icon { font-size: 1rem; }
 
-  /* Risk desc */
-  #risk-desc { font-size: 0.62rem; margin-top: -4px; }
-
-  /* Trends compact */
-  #trends-card { padding: 8px 10px; }
-  #trends-content { font-size: 0.68rem; line-height: 1.4; }
-
-  /* Threat summary compact */
-  #threat-summary { padding: 10px 12px; }
-  .threat-title { font-size: 0.58rem; margin-bottom: 4px; }
-  .threat-row { padding: 5px 6px; gap: 8px; }
-  .threat-icon { font-size: 0.85rem; }
-  .threat-name { font-size: 0.72rem; }
-  .threat-badge { font-size: 0.58rem; padding: 2px 6px; }
-
-  /* Search compact */
-  #search-input { font-size: 0.78rem; padding: 10px 0; }
-
-  /* Controls grid: 2 columns */
-  #controls-block { padding: 8px 10px; }
-  .controls-header h3 { font-size: 0.55rem; }
+  /* Controls grid: single column */
   .controls-grid {
     grid-template-columns: 1fr 1fr;
-    gap: 1px 10px;
+    gap: 2px 12px;
   }
-  .controls-grid .toggle { font-size: 0.74rem; margin-bottom: 1px; }
-  .mag-filter-inline #mag-slider { width: 60px; }
-
-  /* Chart tiny */
-  .chart-container { min-height: 50px; }
 
   /* Sidebar actions: wrap tighter */
-  #sidebar-actions { gap: 4px; padding: 2px 0; }
-  #sidebar-actions button { width: 28px; height: 28px; font-size: 0.8rem; }
+  #sidebar-actions {
+    gap: 4px;
+  }
+  #sidebar-actions button {
+    width: 30px; height: 30px; font-size: 0.85rem;
+  }
 
-  /* Footer compact */
-  #footer { font-size: 0.5rem; padding-top: 6px; }
-
-  /* Events panel: compact chip */
+  /* Events panel: full width, shorter */
   #events-float {
-    right: 6px;
+    right: 8px;
     left: auto;
-    width: 200px;
-    top: 6px;
+    width: 220px;
+    top: 8px;
     max-height: 40vh;
     border-radius: 10px;
   }
-  #events-float-header { padding: 5px 8px; }
-  #events-float-header #live-indicator { font-size: 0.5rem; gap: 4px; }
-  .live-dot { width: 6px; height: 6px; }
-  #events-float-header #live-last { display: none; }
-  #events-toggle-btn { font-size: 0.65rem; }
-  #events-float-body { max-height: 28vh; padding: 4px; }
-  #events-float-body.collapsed { max-height: 0; padding: 0 4px; overflow: hidden; }
-  #events li { font-size: 0.6rem; padding: 5px 7px; }
-  .time-ago { font-size: 0.5rem; }
+  #events-float-header {
+    padding: 6px 10px;
+  }
+  #events-float-header #live-indicator {
+    font-size: 0.55rem;
+  }
+  #events-float-header #live-last {
+    font-size: 0.6rem;
+    display: none;
+  }
+  #events-float-body {
+    max-height: 30vh;
+    padding: 6px;
+  }
+  #events-float-body.collapsed {
+    max-height: 0;
+    padding: 0 6px;
+    overflow: hidden;
+  }
+  #events li {
+    font-size: 0.65rem;
+    padding: 6px 8px;
+  }
 
-  /* AI dock: simplified */
-  #ai-dock { left: 0; }
-  #ai-dock-bar { padding: 7px 12px; gap: 8px; }
-  #ai-dock-icon { font-size: 0.9rem; }
+  /* AI dock: adjust for mobile */
+  #ai-dock {
+    left: 0;
+  }
+  #ai-dock-bar {
+    padding: 8px 14px;
+    gap: 10px;
+  }
   #ai-dock-label { display: none; }
   #ai-dock-divider { display: none; }
-  #ai-dock-preview { font-size: 0.62rem; }
+  #ai-dock-preview { font-size: 0.68rem; }
   #ai-dock-meta { display: none; }
-  #ai-dock-toggle { padding: 3px 8px; font-size: 0.6rem; }
-  #ai-dock-body { padding: 0 12px 14px; max-height: 200px; }
-  #ai-dock-content { padding-top: 12px; }
-  #ai-report { font-size: 0.72rem; line-height: 1.6; max-height: 160px; }
-  .ai-section-tag { font-size: 0.68rem; }
-  #ai-dock-footer { margin-top: 8px; padding-top: 6px; }
-  #ai-meta { font-size: 0.58rem; }
+  #ai-dock-body {
+    padding: 0 14px 16px;
+  }
+  #ai-report { font-size: 0.78rem; line-height: 1.7; }
 
-  /* Commune panel: bottom sheet */
+  /* Commune panel: full width bottom */
   #commune-panel {
-    left: 0; right: 0; bottom: 44px;
-    width: 100%; max-height: 55vh;
-    border-radius: 14px 14px 0 0;
+    left: 8px;
+    right: 8px;
+    bottom: 50px;
+    width: auto;
+    max-height: 50vh;
   }
 
-  /* Detail panel: bottom sheet */
+  /* Detail panel: full width bottom */
   #detail-panel {
-    left: 0; right: 0; bottom: 44px;
-    width: 100%; max-height: 55vh;
-    border-radius: 14px 14px 0 0;
+    left: 8px;
+    right: 8px;
+    bottom: 50px;
+    width: auto;
+    max-height: 50vh;
   }
 
-  /* Legend: hide on mobile — info is in sidebar */
-  .legend { display: none; }
+  /* Legend: smaller */
+  .legend {
+    font-size: 0.68rem;
+    padding: 10px 12px;
+    min-width: 130px;
+  }
 
-  /* Toast: mobile */
+  /* Toast: fit mobile */
   #new-quake-toast {
-    left: 12px; right: 12px;
+    left: 16px;
+    right: 16px;
     transform: none;
-    font-size: 0.78rem; padding: 10px 14px;
-    top: 16px;
+    font-size: 0.82rem;
+    padding: 10px 16px;
   }
 
-  /* Tooltips: hide on mobile */
+  /* Tooltip: hide on mobile (use popups instead) */
   #tooltip { display: none !important; }
   #threat-tooltip { display: none !important; }
 
-  /* Overlays: full screen, less padding */
-  #vuln-overlay, #evacuate-overlay, #stats-overlay, #weather-overlay { padding: 0; }
+  /* Overlays: full screen with less padding */
+  #vuln-overlay, #evacuate-overlay, #stats-overlay, #weather-overlay {
+    padding: 0;
+  }
   #vuln-header, #evacuate-header, #stats-header, #weather-header {
-    padding: 14px 16px;
+    padding: 16px 18px;
   }
-  #vuln-title, #evacuate-title, #stats-title, #weather-title { font-size: 1rem; }
-  #vuln-body, #evacuate-body, #stats-body, #weather-body { padding: 14px 16px; }
-  #vuln-grid { grid-template-columns: 1fr; gap: 12px; }
-  #vuln-legend { gap: 6px; }
-  .vuln-badge { font-size: 0.65rem; padding: 3px 8px; }
-  #stats-summary { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .stats-num { font-size: 1.8rem; }
-  .stats-label { font-size: 0.6rem; }
-  #stats-charts { grid-template-columns: 1fr; gap: 14px; }
-  #weather-grid { grid-template-columns: 1fr; gap: 12px; }
+  #vuln-body, #evacuate-body, #stats-body, #weather-body {
+    padding: 16px 18px;
+  }
+  #vuln-grid { grid-template-columns: 1fr; }
+  #stats-summary { grid-template-columns: 1fr 1fr; }
+  #stats-charts { grid-template-columns: 1fr; }
+  #weather-grid { grid-template-columns: 1fr; }
 
-  /* Evacuate: compact */
-  #evacuate-body { max-width: 100%; }
-  #evacuate-selector { flex-direction: column; gap: 8px; }
-  #evacuate-region { font-size: 0.85rem; }
-  #evacuate-btn { width: 100%; }
+  /* Kiosk: adjust */
+  #kiosk-overlay { padding: 16px; }
+  #kiosk-stats { grid-template-columns: 1fr 1fr; gap: 8px; }
+  #kiosk-main { grid-template-columns: 1fr; }
 
-  /* Kiosk: stack */
-  #kiosk-overlay { padding: 12px; gap: 10px; }
-  #kiosk-logo { font-size: 1.4rem; }
-  #kiosk-subtitle { font-size: 0.7rem; }
-  #kiosk-clock { font-size: 1rem; }
-  #kiosk-stats { grid-template-columns: 1fr 1fr; gap: 6px; }
-  .kiosk-stat { padding: 10px; }
-  .kiosk-num { font-size: 2rem; }
-  .kiosk-label { font-size: 0.6rem; }
-  #kiosk-main { grid-template-columns: 1fr; gap: 10px; }
-  #kiosk-close { font-size: 0.78rem; padding: 6px 16px; }
+  /* Emergency: fit mobile */
+  #emergency-content { padding: 24px; }
+  #emergency-content h1 { font-size: 1.4rem; }
 
-  /* Emergency: fit */
-  #emergency-content { padding: 20px; }
-  #emergency-content h1 { font-size: 1.3rem; }
-  .emergency-instructions p { font-size: 0.8rem; padding: 6px 10px; }
-
-  /* Radio: bottom */
+  /* Radio: full width */
   #radio-emergency {
-    left: 0; right: 0; bottom: 44px;
-    min-width: unset; border-radius: 14px 14px 0 0;
+    left: 8px;
+    right: 8px;
+    bottom: 60px;
+    min-width: unset;
   }
 }
 
-/* Very small phones (<400px) */
+/* Small phones (<400px) */
 @media (max-width: 400px) {
-  #sidebar { width: 100vw; max-width: 100vw; }
-  .controls-grid { grid-template-columns: 1fr; }
-  .mag-filter-inline { display: none; }
-  #events-float { width: 160px; }
-  #events-float-header #live-indicator { font-size: 0.45rem; }
-  .stat-number { font-size: 0.95rem; }
+  #sidebar {
+    width: 100vw;
+    max-width: 100vw;
+  }
+  .controls-grid {
+    grid-template-columns: 1fr;
+  }
+  .mag-filter-inline {
+    display: none;
+  }
 }
-
 
 /* ===== LOADING SPINNER ===== */
 .loading-container {
