@@ -5,17 +5,7 @@ const tooltip = document.getElementById("tooltip");
 const detailPanel = document.getElementById("detail-panel");
 const detailContent = document.getElementById("detail-content");
 
-const map = L.map("map", {
-  zoomControl: true,
-  preferCanvas: true,
-  zoomSnap: 0.5,
-  zoomDelta: 0.5,
-  wheelPxPerZoomLevel: 120,
-  minZoom: 3,
-  maxZoom: 18,
-  maxBounds: [[-60, -85], [-10, -60]],
-  maxBoundsViscosity: 0.8
-});
+const map = L.map("map", { zoomControl: true });
 map.setView([-33.5, -70.5], 5);
 
 // ===== MOBILE MENU =====
@@ -47,10 +37,7 @@ map.setView([-33.5, -70.5], 5);
 
 L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
   attribution: "©OpenStreetMap ©CartoDB",
-  maxZoom: 18,
-  updateWhenZooming: false,
-  updateWhenIdle: true,
-  keepBuffer: 4
+  maxZoom: 18
 }).addTo(map);
 
 // ===== LOADING HELPER =====
@@ -144,9 +131,9 @@ legend.addTo(map);
 
 function renderRiskZones() {
   riskZones.forEach(function(z) {
-    L.circleMarker([z.lat, z.lon], {
-      radius: 18, fillColor: z.color, color: z.color,
-      weight: 1.5, opacity: 0.5, fillOpacity: 0.1
+    L.circle([z.lat, z.lon], {
+      radius: z.radius, fillColor: z.color, color: z.color,
+      weight: 1, opacity: 0.4, fillOpacity: 0.08
     }).bindTooltip("⚠️ " + z.label, { sticky: true }).addTo(riskLayer);
   });
 }
@@ -271,14 +258,6 @@ document.getElementById("ai-dock-bar").addEventListener("click", function() {
   document.getElementById("ai-dock-toggle").textContent = aiCollapsed ? "▲" : "▼";
 });
 
-if(document.getElementById("btn-ai")) document.getElementById("btn-ai").addEventListener("click", function() {
-  const btn = document.getElementById("btn-ai");
-  aiCollapsed = !aiCollapsed;
-  document.getElementById("ai-dock-body").classList.toggle("collapsed", aiCollapsed);
-  document.getElementById("ai-dock-toggle").textContent = aiCollapsed ? "▲" : "▼";
-  btn.classList.toggle("active", !aiCollapsed);
-});
-
 // ===== MODO VOZ =====
 function speak(text) {
   if (!voiceEnabled || !window.speechSynthesis) return;
@@ -288,15 +267,6 @@ function speak(text) {
   window.speechSynthesis.speak(utter);
 }
 
-if(document.getElementById("btn-voice")) document.getElementById("btn-voice").addEventListener("click", function() {
-  voiceEnabled = !voiceEnabled;
-  const btn = document.getElementById("btn-voice");
-  btn.textContent = voiceEnabled ? "🔊" : "🔇";
-  btn.classList.toggle("active", voiceEnabled);
-  if (voiceEnabled) speak("Modo voz activado. VigilaChile monitoreando desastres en tiempo real.");
-  else window.speechSynthesis.cancel();
-});
-
 // ===== MI UBICACIÓN =====
 function distanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -305,32 +275,6 @@ function distanceKm(lat1, lon1, lat2, lon2) {
   const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 }
-
-if(document.getElementById("btn-location")) document.getElementById("btn-location").addEventListener("click", function() {
-  if (!navigator.geolocation) return alert("Tu navegador no soporta geolocalización.");
-  navigator.geolocation.getCurrentPosition(function(pos) {
-    const lat = pos.coords.latitude, lon = pos.coords.longitude;
-    userLocation = { lat, lon };
-    if (userMarker) map.removeLayer(userMarker);
-    userMarker = L.marker([lat, lon], {
-      icon: L.divIcon({ className: "user-marker", iconSize: [16, 16] })
-    }).addTo(map).bindPopup("📍 Tu ubicación").openPopup();
-    map.setView([lat, lon], 8);
-    document.getElementById("location-card").classList.remove("hidden");
-    if (allQuakes.length > 0) {
-      const nearest = allQuakes.reduce(function(a, b) {
-        return distanceKm(lat, lon, a.lat, a.lon) < distanceKm(lat, lon, b.lat, b.lon) ? a : b;
-      });
-      const dist = distanceKm(lat, lon, nearest.lat, nearest.lon);
-      const risk = dist < 50 ? "⚠️ Zona de riesgo" : dist < 150 ? "🟡 Precaución" : "✅ Zona segura";
-      document.getElementById("location-content").innerHTML =
-        "📍 <b>Tu ubicación detectada</b><br>Sismo más cercano: <b>M" + nearest.magnitude + "</b><br>" +
-        nearest.place + "<br>Distancia: <b>" + dist + " km</b><br>Estado: <b>" + risk + "</b>";
-      speak("Tu sismo más cercano es de magnitud " + nearest.magnitude + ", a " + dist + " kilómetros.");
-    }
-    if(document.getElementById("btn-location")) if(document.getElementById("btn-location")) document.getElementById("btn-location").classList.add("active");
-  }, function() { alert("No se pudo obtener tu ubicación."); });
-});
 
 // ===== COMPARTIR =====
 function getShareText(q) {
@@ -347,20 +291,6 @@ function getShareButtons(q) {
     "<button class='share-btn copy' id='copy-btn'>📋 Copiar</button>" +
     "</div>";
 }
-
-if(document.getElementById("btn-share")) document.getElementById("btn-share").addEventListener("click", function() {
-  const text =
-    "🛰️ VigilaChile — Monitoreo de desastres naturales en tiempo real\n" +
-    "📊 " + document.getElementById("quake-count").textContent + " sismos · " +
-    "🔥 " + document.getElementById("fire-count").textContent + " focos activos · " +
-    "🚨 Riesgo: " + document.getElementById("risk-score").textContent + "\n" +
-    "🌐 https://vigilachile.vercel.app";
-  if (navigator.share) {
-    navigator.share({ title: "VigilaChile", text: text, url: "https://vigilachile.vercel.app" }).catch(function() {});
-  } else {
-    navigator.clipboard.writeText(text).then(function() { alert("✅ Información copiada al portapapeles."); });
-  }
-});
 
 // ===== VOLCANES =====
 async function loadVolcanoes() {
@@ -402,18 +332,28 @@ async function loadRegions() {
 cachedRegions = json.data;
     updateThreatSummary();
     json.data.forEach(function(r) {
-      L.circleMarker([r.lat, r.lon], {
-        radius: 14, fillColor: r.color, color: r.color,
-        weight: 2, opacity: 0.8, fillOpacity: 0.25
+      L.circle([r.lat, r.lon], {
+        radius: 80000, fillColor: r.color, color: r.color,
+        weight: 2, opacity: 0.7, fillOpacity: 0.15
       }).bindTooltip(
         "<b>" + r.name + "</b><br>" +
         "Alerta: <span style='color:" + r.color + ";font-weight:700'>" + r.level + "</span><br>" +
         "Sismos 24h: " + r.quakes_24h + " · Últimas 6h: " + r.quakes_6h + "<br>" +
-        "Mag. máx: M" + r.max_magnitude +
+        "Mag. máx: M" + r.max_magnitude + "<br>" +
+        "Score: " + r.score +
         (r.tsunami_risk ? "<br>🌊 Riesgo tsunami activo" : "") +
         (r.fires_nearby > 0 ? "<br>🔥 " + r.fires_nearby + " focos de incendio" : ""),
         { sticky: true }
       ).addTo(regionLayer);
+
+      L.marker([r.lat, r.lon], {
+        icon: L.divIcon({
+          className: "",
+          html: "<div style='background:" + r.color + "22;border:1px solid " + r.color + ";border-radius:8px;padding:3px 7px;font-size:0.65rem;color:" + r.color + ";font-weight:700;white-space:nowrap'>" + r.name + "</div>",
+          iconAnchor: [40, 10]
+        }),
+        zIndexOffset: -100
+      }).addTo(regionLayer);
     });
   } catch(e) { console.error("Error regiones:", e); }
 }
@@ -1296,13 +1236,13 @@ function checkAlert(quakes) {
 function renderQuakes(quakes) {
   quakeLayer.clearLayers();
   allMarkers = [];
-  var evEl = document.getElementById("events");
-  if (evEl) evEl.innerHTML = "";
+  document.getElementById("events").innerHTML = "";
   const filtered = quakes.filter(function(q) { return q.magnitude >= minMag; });
   document.getElementById("quake-count").textContent = filtered.length;
   const maxMag = filtered.length > 0 ? Math.max.apply(null, filtered.map(function(q) { return q.magnitude; })) : null;
   document.getElementById("max-mag").textContent = maxMag ? maxMag.toFixed(1) : "--";
   checkAlert(filtered);
+  renderChart(filtered);
 
   filtered.forEach(function(q) {
     const radius = Math.max(4, q.magnitude * 4);
@@ -1321,6 +1261,16 @@ function renderQuakes(quakes) {
     });
     circle.on("mouseout", hideTooltip);
     circle.on("click", function() { hideTooltip(); showDetail(q, circle); });
+
+    if (q.magnitude >= 3.5 && isWithin24h(q.time)) {
+      const li = document.createElement("li");
+      li.className = q.magnitude >= 6 ? "quake critical" : "quake";
+      li.innerHTML =
+        "🌍 <b>M" + q.magnitude + "</b> — " + q.place +
+        "<span class='time-ago'>🕐 " + utcToChile(q.time) + " · " + timeAgo(q.time) + "</span>";
+      li.addEventListener("click", function() { showDetail(q, circle); });
+      document.getElementById("events").appendChild(li);
+    }
   });
 
   if (userLocation && filtered.length > 0) {
@@ -1345,10 +1295,14 @@ async function loadFires() {
     try { document.getElementById("qp-fires-count").textContent = json.count; } catch(e) {}
     updateLastEvent();
     json.data.forEach(function(f) {
-      const radius = Math.max(5, (f.brightness - 300) / 12);
+      const radius = Math.max(6, (f.brightness - 300) / 10);
+      L.circleMarker([f.lat, f.lon], {
+        radius: radius + 8, fillColor: "#ff6b35", color: "#ff6b35",
+        weight: 1, opacity: 0.3, fillOpacity: 0.12, className: "pulse-ring"
+      }).addTo(fireLayer);
       const circle = L.circleMarker([f.lat, f.lon], {
         radius: radius, fillColor: "#ff6b35", color: "#ff9500",
-        weight: 1, opacity: 0.9, fillOpacity: 0.75
+        weight: 1.5, opacity: 1, fillOpacity: 0.85
       }).addTo(fireLayer);
       circle.on("mouseover", function(e) {
         showTooltip(e,
@@ -1357,6 +1311,24 @@ async function loadFires() {
         );
       });
       circle.on("mouseout", hideTooltip);
+      const li = document.createElement("li");
+      li.className = "fire";
+      li.textContent = "🔥 Foco — Brillo " + f.brightness + "K — " + f.date;
+      li.style.cursor = "pointer";
+      li.addEventListener("click", function() {
+        map.setView([f.lat, f.lon], 10, { animate: true });
+        L.popup()
+          .setLatLng([f.lat, f.lon])
+          .setContent(
+            "<b>🔥 Foco de calor</b><br>" +
+            "Brillo: " + f.brightness + " K<br>" +
+            "Confianza: " + f.confidence + "%<br>" +
+            "Fecha: " + f.date + "<br>" +
+            "Coords: " + f.lat.toFixed(3) + ", " + f.lon.toFixed(3)
+          )
+          .openOn(map);
+      });
+      document.getElementById("events").prepend(li);
     });
   } catch(err) { document.getElementById("fire-count").textContent = "Error"; }
 }
@@ -1401,16 +1373,6 @@ document.getElementById("toggle-heat").addEventListener("change", async function
   } else {
     if (heatLayer) map.removeLayer(heatLayer);
     document.getElementById("heat-status").classList.add("hidden");
-  }
-});
-
-if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").addEventListener("click", function() {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen();
-    if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").textContent = "⊠";
-  } else {
-    document.exitFullscreen();
-    if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").textContent = "⛶";
   }
 });
 

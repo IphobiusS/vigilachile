@@ -1,4 +1,4 @@
-const CACHE_NAME = "vigilachile-v7";
+const CACHE_NAME = "vigilachile-v8";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -26,7 +26,6 @@ self.addEventListener("activate", function(e) {
         keys.filter(function(key) {
           return key !== CACHE_NAME;
         }).map(function(key) {
-          console.log("GeoAlert SW: eliminando caché viejo:", key);
           return caches.delete(key);
         })
       );
@@ -36,12 +35,12 @@ self.addEventListener("activate", function(e) {
   );
 });
 
-// Fetch — estrategia Network First para APIs, Cache First para assets
+// Fetch — Network First para todo (evita cachés desactualizados)
 self.addEventListener("fetch", function(e) {
-  const url = new URL(e.request.url);
+  var url = new URL(e.request.url);
 
-  // Requests al backend — siempre network, nunca cachear
-  if (url.port === "8000" || url.hostname === "127.0.0.1" || url.hostname.includes("onrender.com")) {
+  // Backend API — siempre network
+  if (url.hostname.includes("onrender.com") || url.port === "8000") {
     e.respondWith(fetch(e.request).catch(function() {
       return new Response(
         JSON.stringify({ error: "Sin conexión al servidor" }),
@@ -51,35 +50,22 @@ self.addEventListener("fetch", function(e) {
     return;
   }
 
-  // Assets externos (Leaflet, Chart.js, CDNs) — network first
-  if (url.hostname !== self.location.hostname) {
-    e.respondWith(
-      fetch(e.request).catch(function() {
-        return caches.match(e.request);
-      })
-    );
-    return;
-  }
-
-  // Assets locales (html, css, js) — cache first, fallback a network
+  // Todo lo demás — network first, cache fallback
   e.respondWith(
-    caches.match(e.request).then(function(cached) {
-      if (cached) return cached;
-      return fetch(e.request).then(function(response) {
-        // Cachear si es válido
-        if (response && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(function(cache) {
-            cache.put(e.request, clone);
-          });
-        }
-        return response;
-      });
+    fetch(e.request).then(function(response) {
+      if (response && response.status === 200) {
+        var clone = response.clone();
+        caches.open(CACHE_NAME).then(function(cache) {
+          cache.put(e.request, clone);
+        });
+      }
+      return response;
+    }).catch(function() {
+      return caches.match(e.request);
     })
   );
 });
 
-// Mensaje para forzar actualización desde app.js si es necesario
 self.addEventListener("message", function(e) {
   if (e.data === "skipWaiting") {
     self.skipWaiting();

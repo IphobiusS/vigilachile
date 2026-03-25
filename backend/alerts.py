@@ -24,11 +24,11 @@ def send_quake_alert(quake):
         return False
     sent_alerts.add(key)
 
-    subject = "🚨 GeoAlert Chile — Sismo M" + str(quake["magnitude"]) + " — " + quake["place"]
+    subject = "🚨 VigilaChile — Sismo M" + str(quake["magnitude"]) + " — " + quake["place"]
 
     html = """
     <div style="font-family:Arial,sans-serif;background:#0a0e1a;color:#e0e6f0;padding:32px;border-radius:12px;">
-      <h1 style="color:#4fc3f7;margin-bottom:4px;">🛰️ GeoAlert Chile</h1>
+      <h1 style="color:#4fc3f7;margin-bottom:4px;">🛰️ VigilaChile</h1>
       <p style="color:#5c7a9e;margin-top:0">Alerta Sísmica Automática</p>
       <hr style="border-color:#1e2d4a"/>
       <h2 style="color:#ffd700">🌍 Sismo M""" + str(quake["magnitude"]) + """</h2>
@@ -40,7 +40,7 @@ def send_quake_alert(quake):
       <hr style="border-color:#1e2d4a"/>
       <p style="color:#5c7a9e;font-size:12px">
         Fuente: Centro Sismológico Nacional (CSN) · Universidad de Chile<br>
-        GeoAlert Chile — Sistema de Monitoreo de Desastres Naturales
+        VigilaChile — Sistema de Monitoreo de Desastres Naturales
       </p>
     </div>
     """

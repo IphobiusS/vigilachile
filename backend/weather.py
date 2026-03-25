@@ -51,7 +51,7 @@ def get_weather_data():
 
     api_key = WEATHER_API_KEY
     if not api_key:
-        api_key = "5374d97eb04f4a1e9b8155428262403"
+        return {"count": 0, "data": [], "error": "WEATHER_API_KEY not configured"}
 
     for region in REGION_COORDS:
         try:

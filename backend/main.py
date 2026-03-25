@@ -36,7 +36,7 @@ app.add_middleware(
 # ===== Cache simple para evitar llamadas repetidas =====
 _cache = {}
 _cache_ttl = 60  # segundos
-_cache_ttl_weather = 7200  # 2 horas para clima (evitar rate limit Open-Meteo)
+_cache_ttl_weather = 7200  # 2 horas para clima
 
 def get_cached(key, fn):
     now = datetime.now(timezone.utc).timestamp()
@@ -227,7 +227,7 @@ def report_pdf():
         "TENDENCIA: " + t.get("trend", "--") + " (" + str(t.get("percentage", 0)) + "% vs ayer)\n\n"
         "Escribe un parrafo fluido cubriendo sismos, incendios, volcanes, tsunami y clima. "
         "REGLAS ESTRICTAS: "
-        "1) Tu primera palabra debe ser 'Chile' o 'En' o 'Se' o 'Durante'. NUNCA empieces con ANALISIS, REPORTE, VIGILACHILE, ni ningun titulo. "
+        "1) NO pongas titulo ni encabezado. Empieza directamente con el analisis. "
         "2) NO uses markdown, asteriscos, numerales (#), guiones, blockquotes (>), lineas (---), negritas ni simbolos especiales. "
         "3) Solo texto plano en parrafos continuos. Tono tecnico profesional. Maximo 120 palabras."
     )
@@ -354,19 +354,25 @@ def commune_info(lat: float, lon: float):
 
 @app.get("/history")
 def history():
-    quakes = []
+    # Use cache (1 hour TTL)
+    now_ts = datetime.now(timezone.utc).timestamp()
+    if "history" in _cache and now_ts - _cache["history"]["ts"] < 3600:
+        return _cache["history"]["data"]
+
+    from concurrent.futures import ThreadPoolExecutor
     now = datetime.now(timezone.utc)
-    for i in range(1, 31):
+
+    def fetch_day(i):
         date = (now - timedelta(days=i)).strftime("%Y%m%d")
+        results = []
         try:
             res = requests.get(
                 "https://api.xor.cl/sismo/historic/" + date,
                 timeout=5
             )
-            data = res.json()
-            for s in data.get("events", []):
+            for s in res.json().get("events", []):
                 try:
-                    quakes.append({
+                    results.append({
                         "lat": float(s["latitude"]),
                         "lon": float(s["longitude"]),
                         "magnitude": float(s["magnitude"]["value"]),
@@ -377,5 +383,15 @@ def history():
                 except:
                     continue
         except:
-            continue
-    return {"count": len(quakes), "data": quakes}
+            pass
+        return results
+
+    quakes = []
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        results = executor.map(fetch_day, range(1, 31))
+        for day_quakes in results:
+            quakes.extend(day_quakes)
+
+    data = {"count": len(quakes), "data": quakes}
+    _cache["history"] = {"data": data, "ts": now_ts}
+    return data
