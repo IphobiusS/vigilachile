@@ -211,26 +211,31 @@ def report_pdf():
         top_zones[zone] = top_zones.get(zone, 0) + 1
     top_zone = max(top_zones, key=top_zones.get) if top_zones else "Chile"
 
-    volc_data = v.get("data", [])
-    volc_alerts = [x for x in volc_data if x.get("alert") != "Verde"]
-    tsun_count = ts.get("count", 0)
+    volc_str = ""
+    if volc_alerts:
+        volc_str = "VOLCANES: " + str(len(volc_alerts)) + " en alerta (" + ", ".join([x["name"] + " " + x["alert"] for x in volc_alerts]) + ")\n"
+    else:
+        volc_str = "VOLCANES: Todos en alerta verde\n"
 
     prompt = (
-        "Eres el sistema VigilaChile. Genera un analisis ejecutivo en español (maximo 150 palabras) "
-        "cubriendo TODAS las amenazas monitoreadas para incluir en un PDF profesional:\n\n"
+        "Eres un sismólogo chileno redactando un informe técnico para un PDF profesional. "
+        "CONTEXTO CRITICO SOBRE CHILE: Chile es el pais mas sismico del mundo. Registra entre 20-50 sismos diarios M2.5+, esto es COMPLETAMENTE NORMAL. "
+        "Un sismo M4.7 en Chile NO es noticia ni alarma. Solo sismos M6.0+ ameritan preocupacion real. "
+        "Volcanes en Alerta Amarilla es el estado habitual de vigilancia de SERNAGEOMIN, NO significa erupcion inminente. "
+        "18-30 focos de calor es normal en temporada. NO exageres ni uses lenguaje alarmista.\n\n"
+        "DATOS:\n"
         "SISMOS: " + str(total_quakes) + " eventos, max M" + str(max_mag) + ", zona activa: " + top_zone + "\n"
-        "INCENDIOS: " + str(total_fires) + " focos activos NASA FIRMS\n"
-        "VOLCANES: " + str(len(volc_alerts)) + " en alerta (" + ", ".join([x["name"] + " " + x["alert"] for x in volc_alerts]) + ")\n" if volc_alerts else
-        "VOLCANES: Todos en alerta verde\n"
+        "INCENDIOS: " + str(total_fires) + " focos activos\n"
+        + volc_str +
         "TSUNAMI: " + ("ALERTA ACTIVA" if tsun_count > 0 else "Sin alertas") + "\n"
         "RIESGO: " + str(r.get("score", "--")) + "/10 (" + r.get("level", "--") + ")\n"
         "TENDENCIA: " + t.get("trend", "--") + " (" + str(t.get("percentage", 0)) + "% vs ayer)\n\n"
-        "Escribe un parrafo fluido cubriendo sismos, incendios, volcanes, tsunami y clima. "
+        "Escribe un parrafo tecnico, sobrio y realista. Si la actividad es normal para Chile, dilo explicitamente. "
         "REGLAS ABSOLUTAS: "
-        "1) Tu primera palabra DEBE ser 'El territorio' o 'Chile' o 'En materia' o 'Se registraron'. JAMAS empieces con ANALISIS, REPORTE, VIGILACHILE, EJECUTIVO, PERIODO ni ningun titulo o encabezado. "
-        "2) NO pongas firma, footer ni cierre como 'Generado por', 'Fuente:', 'Elaborado por', 'Sistema Integrado', 'VigilaChile'. Termina con una recomendacion y punto final. "
-        "3) NO uses markdown, asteriscos, numerales, guiones, blockquotes, lineas, negritas ni simbolos especiales. "
-        "4) Solo texto plano en parrafos continuos. Tono tecnico profesional. Maximo 120 palabras."
+        "1) Tu PRIMERA palabra debe ser 'El territorio' o 'Chile' o 'En materia' o 'Se registraron'. JAMAS empieces con ANALISIS, REPORTE, VIGILACHILE, EJECUTIVO ni ningun titulo. "
+        "2) JAMAS pongas firma, footer ni cierre tipo 'Generado por', 'VigilaChile', 'Sistema'. Termina con una frase de cierre y punto final. "
+        "3) NO uses simbolos especiales, emojis, asteriscos, negritas, markdown ni caracteres como ■ o ●. "
+        "4) Solo texto plano. Tono de informe tecnico sobrio. Maximo 120 palabras."
     )
 
     try:

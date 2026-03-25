@@ -32,24 +32,25 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     now_chile = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
 
     def clean_text(text):
-        """Strip ALL AI-generated headers, footers and markdown."""
+        """Strip ALL AI artifacts: headers, footers, markdown, special chars."""
         if not text:
             return ""
         import re
-        # Remove markdown
         text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
         text = re.sub(r'\*([^*]+)\*', r'\1', text)
         text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)
         text = re.sub(r'^---+$', '', text, flags=re.MULTILINE)
         text = re.sub(r'^>\s*', '', text, flags=re.MULTILINE)
         text = re.sub(r'^-\s+', '', text, flags=re.MULTILINE)
-        # Remove EVERYTHING before the first real sentence
-        text = re.sub(r'^.*?(El territorio|Chile |En el |En materia|Se registr|Durante |La actividad|SISMOS:|El país)', r'\1', text, count=1, flags=re.DOTALL)
-        # Remove AI footer signatures
+        # Strip everything before first real sentence
+        text = re.sub(r'^.*?(El territorio|Chile |En el |En materia|Se registr|Durante |La actividad|El pais|El país)', r'\1', text, count=1, flags=re.DOTALL)
+        # Strip AI signatures/footers
         text = re.sub(r'(Generado por|Fuente:|Elaborado por|Sistema Integrado|VigilaChile —|Nota:).*$', '', text, flags=re.DOTALL)
-        # Remove special chars
-        text = text.replace('■', '').replace('□', '').replace('►', '').replace('●', '')
+        # Strip ALL special characters and unicode artifacts
+        text = re.sub(r'[■□►●▪▫◆◇★☆✦✧⬛⬜🔹🔸]', '', text)
+        text = re.sub(r'\s*■■\s*', ' ', text)
         text = re.sub(r'\n{3,}', '\n\n', text)
+        text = re.sub(r'  +', ' ', text)
         return text.strip()
 
     cell_s = ParagraphStyle("Cell", parent=styles["Normal"], fontSize=8, textColor=HexColor("#333333"), leading=10)
