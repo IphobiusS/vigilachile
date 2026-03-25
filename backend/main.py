@@ -36,7 +36,7 @@ app.add_middleware(
 # ===== Cache simple para evitar llamadas repetidas =====
 _cache = {}
 _cache_ttl = 60  # segundos
-_cache_ttl_weather = 7200  # 2 horas para clima
+_cache_ttl_weather = 7200  # 2 horas para clima (evitar rate limit Open-Meteo)
 
 def get_cached(key, fn):
     now = datetime.now(timezone.utc).timestamp()
@@ -226,10 +226,11 @@ def report_pdf():
         "RIESGO: " + str(r.get("score", "--")) + "/10 (" + r.get("level", "--") + ")\n"
         "TENDENCIA: " + t.get("trend", "--") + " (" + str(t.get("percentage", 0)) + "% vs ayer)\n\n"
         "Escribe un parrafo fluido cubriendo sismos, incendios, volcanes, tsunami y clima. "
-        "REGLAS ESTRICTAS: "
-        "1) NO pongas titulo ni encabezado. Empieza directamente con el analisis. "
-        "2) NO uses markdown, asteriscos, numerales (#), guiones, blockquotes (>), lineas (---), negritas ni simbolos especiales. "
-        "3) Solo texto plano en parrafos continuos. Tono tecnico profesional. Maximo 120 palabras."
+        "REGLAS ABSOLUTAS: "
+        "1) Tu primera palabra DEBE ser 'El territorio' o 'Chile' o 'En materia' o 'Se registraron'. JAMAS empieces con ANALISIS, REPORTE, VIGILACHILE, EJECUTIVO, PERIODO ni ningun titulo o encabezado. "
+        "2) NO pongas firma, footer ni cierre como 'Generado por', 'Fuente:', 'Elaborado por', 'Sistema Integrado', 'VigilaChile'. Termina con una recomendacion y punto final. "
+        "3) NO uses markdown, asteriscos, numerales, guiones, blockquotes, lineas, negritas ni simbolos especiales. "
+        "4) Solo texto plano en parrafos continuos. Tono tecnico profesional. Maximo 120 palabras."
     )
 
     try:
@@ -354,25 +355,19 @@ def commune_info(lat: float, lon: float):
 
 @app.get("/history")
 def history():
-    # Use cache (1 hour TTL)
-    now_ts = datetime.now(timezone.utc).timestamp()
-    if "history" in _cache and now_ts - _cache["history"]["ts"] < 3600:
-        return _cache["history"]["data"]
-
-    from concurrent.futures import ThreadPoolExecutor
+    quakes = []
     now = datetime.now(timezone.utc)
-
-    def fetch_day(i):
+    for i in range(1, 31):
         date = (now - timedelta(days=i)).strftime("%Y%m%d")
-        results = []
         try:
             res = requests.get(
                 "https://api.xor.cl/sismo/historic/" + date,
                 timeout=5
             )
-            for s in res.json().get("events", []):
+            data = res.json()
+            for s in data.get("events", []):
                 try:
-                    results.append({
+                    quakes.append({
                         "lat": float(s["latitude"]),
                         "lon": float(s["longitude"]),
                         "magnitude": float(s["magnitude"]["value"]),
@@ -383,15 +378,5 @@ def history():
                 except:
                     continue
         except:
-            pass
-        return results
-
-    quakes = []
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        results = executor.map(fetch_day, range(1, 31))
-        for day_quakes in results:
-            quakes.extend(day_quakes)
-
-    data = {"count": len(quakes), "data": quakes}
-    _cache["history"] = {"data": data, "ts": now_ts}
-    return data
+            continue
+    return {"count": len(quakes), "data": quakes}

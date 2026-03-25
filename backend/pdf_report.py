@@ -32,22 +32,23 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     now_chile = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
 
     def clean_text(text):
-        """Strip any markdown and AI-generated headers from the text."""
+        """Strip ALL AI-generated headers, footers and markdown."""
         if not text:
             return ""
         import re
-        # Remove markdown formatting
-        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)  # **bold**
-        text = re.sub(r'\*([^*]+)\*', r'\1', text)  # *italic*
-        text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)  # # headers
-        text = re.sub(r'^---+$', '', text, flags=re.MULTILINE)  # --- lines
-        text = re.sub(r'^>\s*', '', text, flags=re.MULTILINE)  # > blockquotes
-        text = re.sub(r'^-\s+', '', text, flags=re.MULTILINE)  # - bullets
-        # Remove AI-generated titles/headers before the actual content
-        text = re.sub(r'^.*?(REPORTE|ANÁLISIS|ANALISIS).*?(horas|actual|integral)\s*', '', text, count=1, flags=re.IGNORECASE)
+        # Remove markdown
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+        text = re.sub(r'\*([^*]+)\*', r'\1', text)
+        text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)
+        text = re.sub(r'^---+$', '', text, flags=re.MULTILINE)
+        text = re.sub(r'^>\s*', '', text, flags=re.MULTILINE)
+        text = re.sub(r'^-\s+', '', text, flags=re.MULTILINE)
+        # Remove EVERYTHING before the first real sentence
+        text = re.sub(r'^.*?(El territorio|Chile |En el |En materia|Se registr|Durante |La actividad|SISMOS:|El país)', r'\1', text, count=1, flags=re.DOTALL)
+        # Remove AI footer signatures
+        text = re.sub(r'(Generado por|Fuente:|Elaborado por|Sistema Integrado|VigilaChile —|Nota:).*$', '', text, flags=re.DOTALL)
         # Remove special chars
         text = text.replace('■', '').replace('□', '').replace('►', '').replace('●', '')
-        # Clean up extra whitespace
         text = re.sub(r'\n{3,}', '\n\n', text)
         return text.strip()
 
@@ -99,7 +100,7 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     elements.append(Spacer(1, 12))
 
     # ANALISIS IA
-    elements.append(Paragraph("Analisis IA en Tiempo Real", sec_s))
+    elements.append(Paragraph("Situacion Actual", sec_s))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=primary))
     elements.append(Spacer(1, 6))
     cleaned_ai = clean_text(ai_report) if ai_report else "Analisis no disponible."
@@ -156,7 +157,7 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     elements.append(Spacer(1, 10))
 
     # CLIMA
-    elements.append(Paragraph("Clima e Inundaciones — WeatherAPI", sec_s))
+    elements.append(Paragraph("Clima e Inundaciones — Open-Meteo", sec_s))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=clima_c))
     elements.append(Spacer(1, 6))
     weather_data = (weather if isinstance(weather, list) else weather.get("data", [])) if weather else []
@@ -200,7 +201,7 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     # FOOTER
     elements.append(HRFlowable(width="100%", thickness=1, color=primary))
     elements.append(Spacer(1, 6))
-    elements.append(Paragraph("Fuentes: CSN · Universidad de Chile · NASA FIRMS · USGS · SERNAGEOMIN · WeatherAPI · SENAPRED", small_s))
+    elements.append(Paragraph("Fuentes: CSN · Universidad de Chile · NASA FIRMS · USGS · SERNAGEOMIN · Open-Meteo · SENAPRED", small_s))
     elements.append(Paragraph("VigilaChile — Plataforma de Monitoreo Integral de Desastres Naturales en Tiempo Real", small_s))
 
     doc.build(elements)
