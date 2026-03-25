@@ -5,7 +5,17 @@ const tooltip = document.getElementById("tooltip");
 const detailPanel = document.getElementById("detail-panel");
 const detailContent = document.getElementById("detail-content");
 
-const map = L.map("map", { zoomControl: true });
+const map = L.map("map", {
+  zoomControl: true,
+  preferCanvas: true,
+  zoomSnap: 0.5,
+  zoomDelta: 0.5,
+  wheelPxPerZoomLevel: 120,
+  minZoom: 3,
+  maxZoom: 18,
+  maxBounds: [[-60, -85], [-10, -60]],
+  maxBoundsViscosity: 0.8
+});
 map.setView([-33.5, -70.5], 5);
 
 // ===== MOBILE MENU =====
@@ -37,7 +47,10 @@ map.setView([-33.5, -70.5], 5);
 
 L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
   attribution: "©OpenStreetMap ©CartoDB",
-  maxZoom: 18
+  maxZoom: 18,
+  updateWhenZooming: false,
+  updateWhenIdle: true,
+  keepBuffer: 4
 }).addTo(map);
 
 // ===== LOADING HELPER =====
@@ -132,7 +145,7 @@ legend.addTo(map);
 function renderRiskZones() {
   riskZones.forEach(function(z) {
     L.circleMarker([z.lat, z.lon], {
-      radius: 20, fillColor: z.color, color: z.color,
+      radius: 18, fillColor: z.color, color: z.color,
       weight: 1.5, opacity: 0.5, fillOpacity: 0.1
     }).bindTooltip("⚠️ " + z.label, { sticky: true }).addTo(riskLayer);
   });
@@ -400,8 +413,6 @@ cachedRegions = json.data;
         (r.tsunami_risk ? "<br>🌊 Riesgo tsunami activo" : "") +
         (r.fires_nearby > 0 ? "<br>🔥 " + r.fires_nearby + " focos de incendio" : ""),
         { sticky: true }
-      ).bindPopup(
-        "<div style='font-size:0.8rem'><b>" + r.name + "</b> — <span style='color:" + r.color + "'>" + r.level + "</span></div>"
       ).addTo(regionLayer);
     });
   } catch(e) { console.error("Error regiones:", e); }
