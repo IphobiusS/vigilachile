@@ -5,7 +5,16 @@ const tooltip = document.getElementById("tooltip");
 const detailPanel = document.getElementById("detail-panel");
 const detailContent = document.getElementById("detail-content");
 
-const map = L.map("map", { zoomControl: true });
+const map = L.map("map", {
+  zoomControl: true,
+  preferCanvas: true,
+  zoomAnimation: true,
+  fadeAnimation: true,
+  markerZoomAnimation: true,
+  zoomSnap: 0.5,
+  zoomDelta: 0.5,
+  wheelPxPerZoomLevel: 120
+});
 map.setView([-33.5, -70.5], 5);
 
 // ===== MOBILE MENU =====
@@ -37,7 +46,11 @@ map.setView([-33.5, -70.5], 5);
 
 L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
   attribution: "©OpenStreetMap ©CartoDB",
-  maxZoom: 18
+  maxZoom: 18,
+  minZoom: 3,
+  updateWhenZooming: false,
+  updateWhenIdle: true,
+  keepBuffer: 4
 }).addTo(map);
 
 // ===== LOADING HELPER =====

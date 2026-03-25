@@ -227,7 +227,7 @@ def report_pdf():
         "TENDENCIA: " + t.get("trend", "--") + " (" + str(t.get("percentage", 0)) + "% vs ayer)\n\n"
         "Escribe un parrafo fluido cubriendo sismos, incendios, volcanes, tsunami y clima. "
         "REGLAS ESTRICTAS: "
-        "1) NO pongas titulo ni encabezado. Empieza directamente con el analisis. "
+        "1) Tu primera palabra debe ser 'Chile' o 'En' o 'Se' o 'Durante'. NUNCA empieces con ANALISIS, REPORTE, VIGILACHILE, ni ningun titulo. "
         "2) NO uses markdown, asteriscos, numerales (#), guiones, blockquotes (>), lineas (---), negritas ni simbolos especiales. "
         "3) Solo texto plano en parrafos continuos. Tono tecnico profesional. Maximo 120 palabras."
     )

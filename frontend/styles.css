@@ -20,7 +20,7 @@
   --yellow: #ffd700;
   --green: #4ade80;
   --fire: #ff6b35;
-  --sidebar-w: 420px;
+  --sidebar-w: min(420px, 28vw);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -54,13 +54,15 @@ body.emergency-mode { animation: emergency-pulse 1s ease-in-out infinite; }
   width: var(--sidebar-w);
   min-width: var(--sidebar-w);
   height: 100vh;
+  height: 100dvh;
   background: linear-gradient(180deg, #0d1226 0%, var(--bg-base) 100%);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 16px 18px;
-  gap: 10px;
-  overflow: hidden;
+  padding: 14px 16px;
+  gap: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
   z-index: 1000;
 }
 body.emergency-mode #sidebar {
