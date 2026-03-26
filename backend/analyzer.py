@@ -50,6 +50,29 @@ def analyze_seismic_pattern(quakes, fires, risk, volcanoes=None, tsunami=None, w
     # Detectar enjambre sísmico
     is_swarm = len(recent) > 8 and max_mag < 5.0
 
+    # Desglose temporal detallado
+    last_1h = []
+    last_3h = []
+    last_12h = []
+    for q in quakes:
+        try:
+            t = datetime.fromisoformat(q["time"].replace(" ", "T")).replace(tzinfo=timezone.utc)
+            delta = (now - t).total_seconds() / 3600
+            if delta <= 1: last_1h.append(q)
+            if delta <= 3: last_3h.append(q)
+            if delta <= 12: last_12h.append(q)
+        except:
+            pass
+
+    sorted_by_time = sorted(quakes, key=lambda q: q.get("time", ""), reverse=True)
+    top5_recent = sorted_by_time[:5]
+    top5_detail = ""
+    for q in top5_recent:
+        top5_detail += "  · M" + str(q["magnitude"]) + " " + q["place"] + " prof:" + str(q.get("depth", "?")) + "km\n"
+
+    top3_zones = sorted(zones.items(), key=lambda x: x[1], reverse=True)[:3]
+    zones_detail = ", ".join([z[0] + " (" + str(z[1]) + ")" for z in top3_zones])
+
     # === Construir datos de TODAS las amenazas ===
     # Volcanes
     volc_section = ""
@@ -85,27 +108,36 @@ def analyze_seismic_pattern(quakes, fires, risk, volcanoes=None, tsunami=None, w
                 clima_section += "  · " + r.get("name", "") + ": " + r.get("risk", {}).get("level", "") + " (score " + str(r.get("risk", {}).get("score", 0)) + ")\n"
 
     prompt = (
-        "Eres un sismólogo chileno experto. Genera un reporte conciso en español (máximo 150 palabras). "
-        "CONTEXTO CRITICO: Chile es el pais MAS SISMICO del mundo. 20-50 sismos diarios M2.5+ es COMPLETAMENTE NORMAL. "
-        "Solo sismos M6.0+ son preocupantes. M4-5 es rutina. Volcanes en Alerta Amarilla es vigilancia estándar de SERNAGEOMIN, NO emergencia. "
-        "15-30 focos de calor es normal. NO exageres. Si todo esta dentro de rangos normales, dilo claramente.\n\n"
-        "DATOS ÚLTIMAS 24 HORAS:\n"
-        "SISMOS: " + str(total) + " eventos, max M" + str(max_mag) + ", promedio M" + str(round(avg_mag, 1)) + ", zona activa: " + top_zone + "\n"
-        + ("PATRON: Posible enjambre sísmico\n" if is_swarm else "") +
+        "Eres un sismólogo chileno senior redactando un informe de situación. "
+        "CONTEXTO: Chile es el país más sísmico del mundo. 20-50 sismos diarios M2.5+ es normal. "
+        "Solo M6.0+ amerita alarma real. Volcanes Alerta Amarilla es vigilancia estándar. "
+        "No exageres, pero SÉ ESPECÍFICO con los datos — menciona eventos concretos, horas y zonas.\n\n"
+        "DATOS DETALLADOS ÚLTIMAS 24 HORAS:\n"
+        "SISMOS: " + str(total) + " eventos totales\n"
+        "- Última hora: " + str(len(last_1h)) + " sismos\n"
+        "- Últimas 3h: " + str(len(last_3h)) + " sismos\n"
+        "- Últimas 6h: " + str(len(recent)) + " sismos\n"
+        "- Últimas 12h: " + str(len(last_12h)) + " sismos\n"
+        "- Magnitud máxima: M" + str(max_mag) + " · Promedio: M" + str(round(avg_mag, 1)) + "\n"
+        "- Zonas más activas: " + zones_detail + "\n"
+        "- 5 sismos más recientes:\n" + top5_detail
+        + ("- PATRON: Posible enjambre sísmico activo\n" if is_swarm else "") +
         "INCENDIOS: " + str(len(fires)) + " focos activos\n"
         + volc_section + tsun_section + clima_section +
-        "RIESGO: " + str(risk["score"]) + "/10 (" + risk["level"] + ")\n\n"
-        "FORMATO — empieza DIRECTAMENTE con 'SISMOS:', sin titulo previo:\n"
-        "SISMOS: [1-2 frases sobrias]\n"
-        "INCENDIOS: [1 frase]\n"
-        "VOLCANES: [1 frase]\n"
+        "RIESGO COMPUESTO: " + str(risk["score"]) + "/10 (" + risk["level"] + ")\n\n"
+        "Genera un informe DETALLADO y ESPECÍFICO. Menciona datos concretos: cuántos sismos recientes, "
+        "zonas específicas, magnitudes. NO repitas frases genéricas sin contexto.\n\n"
+        "FORMATO — empieza DIRECTAMENTE con 'SISMOS:':\n"
+        "SISMOS: [2-3 frases detalladas con desglose temporal y zonas]\n"
+        "INCENDIOS: [1-2 frases]\n"
+        "VOLCANES: [1-2 frases]\n"
         "TSUNAMI: [1 frase]\n"
-        "CLIMA: [1 frase]\n"
-        "EVALUACION: [conclusion realista para Chile]\n\n"
+        "CLIMA: [1-2 frases con regiones]\n"
+        "EVALUACION: [conclusión calibrada para Chile]\n\n"
         "REGLAS: "
-        "1) Empieza con 'SISMOS:'. Sin titulo, encabezado ni fecha antes. "
+        "1) Empieza con 'SISMOS:'. Sin titulo ni encabezado previo. "
         "2) Sin markdown, asteriscos, negritas, simbolos (■●►), firmas ni footer. "
-        "3) Tono sobrio, NO alarmista. Si M<6.0 y <50 sismos, es actividad normal para Chile."
+        "3) Tono técnico profesional, ESPECÍFICO no genérico. Máximo 250 palabras."
     )
 
     try:
@@ -121,7 +153,7 @@ def analyze_seismic_pattern(quakes, fires, risk, volcanoes=None, tsunami=None, w
             },
             json={
                 "model": "claude-sonnet-4-6",
-                "max_tokens": 400,
+                "max_tokens": 600,
                 "messages": [{"role": "user", "content": prompt}]
             },
             timeout=20
