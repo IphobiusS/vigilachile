@@ -5,17 +5,7 @@ const tooltip = document.getElementById("tooltip");
 const detailPanel = document.getElementById("detail-panel");
 const detailContent = document.getElementById("detail-content");
 
-const map = L.map("map", {
-  zoomControl: true,
-  preferCanvas: true,
-  zoomSnap: 0.5,
-  zoomDelta: 0.5,
-  wheelPxPerZoomLevel: 120,
-  minZoom: 3,
-  maxZoom: 18,
-  maxBounds: [[-60, -85], [-10, -60]],
-  maxBoundsViscosity: 0.8
-});
+const map = L.map("map", { zoomControl: true });
 map.setView([-33.5, -70.5], 5);
 
 // ===== MOBILE MENU =====
@@ -47,10 +37,7 @@ map.setView([-33.5, -70.5], 5);
 
 L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
   attribution: "©OpenStreetMap ©CartoDB",
-  maxZoom: 18,
-  updateWhenZooming: false,
-  updateWhenIdle: true,
-  keepBuffer: 4
+  maxZoom: 18
 }).addTo(map);
 
 // ===== LOADING HELPER =====
@@ -271,6 +258,14 @@ document.getElementById("ai-dock-bar").addEventListener("click", function() {
   document.getElementById("ai-dock-toggle").textContent = aiCollapsed ? "▲" : "▼";
 });
 
+if(document.getElementById("btn-ai")) document.getElementById("btn-ai").addEventListener("click", function() {
+  const btn = document.getElementById("btn-ai");
+  aiCollapsed = !aiCollapsed;
+  document.getElementById("ai-dock-body").classList.toggle("collapsed", aiCollapsed);
+  document.getElementById("ai-dock-toggle").textContent = aiCollapsed ? "▲" : "▼";
+  btn.classList.toggle("active", !aiCollapsed);
+});
+
 // ===== MODO VOZ =====
 function speak(text) {
   if (!voiceEnabled || !window.speechSynthesis) return;
@@ -280,6 +275,15 @@ function speak(text) {
   window.speechSynthesis.speak(utter);
 }
 
+if(document.getElementById("btn-voice")) document.getElementById("btn-voice").addEventListener("click", function() {
+  voiceEnabled = !voiceEnabled;
+  const btn = document.getElementById("btn-voice");
+  btn.textContent = voiceEnabled ? "🔊" : "🔇";
+  btn.classList.toggle("active", voiceEnabled);
+  if (voiceEnabled) speak("Modo voz activado. VigilaChile monitoreando desastres en tiempo real.");
+  else window.speechSynthesis.cancel();
+});
+
 // ===== MI UBICACIÓN =====
 function distanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -288,6 +292,32 @@ function distanceKm(lat1, lon1, lat2, lon2) {
   const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 }
+
+if(document.getElementById("btn-location")) document.getElementById("btn-location").addEventListener("click", function() {
+  if (!navigator.geolocation) return alert("Tu navegador no soporta geolocalización.");
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+    userLocation = { lat, lon };
+    if (userMarker) map.removeLayer(userMarker);
+    userMarker = L.marker([lat, lon], {
+      icon: L.divIcon({ className: "user-marker", iconSize: [16, 16] })
+    }).addTo(map).bindPopup("📍 Tu ubicación").openPopup();
+    map.setView([lat, lon], 8);
+    document.getElementById("location-card").classList.remove("hidden");
+    if (allQuakes.length > 0) {
+      const nearest = allQuakes.reduce(function(a, b) {
+        return distanceKm(lat, lon, a.lat, a.lon) < distanceKm(lat, lon, b.lat, b.lon) ? a : b;
+      });
+      const dist = distanceKm(lat, lon, nearest.lat, nearest.lon);
+      const risk = dist < 50 ? "⚠️ Zona de riesgo" : dist < 150 ? "🟡 Precaución" : "✅ Zona segura";
+      document.getElementById("location-content").innerHTML =
+        "📍 <b>Tu ubicación detectada</b><br>Sismo más cercano: <b>M" + nearest.magnitude + "</b><br>" +
+        nearest.place + "<br>Distancia: <b>" + dist + " km</b><br>Estado: <b>" + risk + "</b>";
+      speak("Tu sismo más cercano es de magnitud " + nearest.magnitude + ", a " + dist + " kilómetros.");
+    }
+    if(document.getElementById("btn-location")) if(document.getElementById("btn-location")) document.getElementById("btn-location").classList.add("active");
+  }, function() { alert("No se pudo obtener tu ubicación."); });
+});
 
 // ===== COMPARTIR =====
 function getShareText(q) {
@@ -304,6 +334,20 @@ function getShareButtons(q) {
     "<button class='share-btn copy' id='copy-btn'>📋 Copiar</button>" +
     "</div>";
 }
+
+if(document.getElementById("btn-share")) document.getElementById("btn-share").addEventListener("click", function() {
+  const text =
+    "🛰️ VigilaChile — Monitoreo de desastres naturales en tiempo real\n" +
+    "📊 " + document.getElementById("quake-count").textContent + " sismos · " +
+    "🔥 " + document.getElementById("fire-count").textContent + " focos activos · " +
+    "🚨 Riesgo: " + document.getElementById("risk-score").textContent + "\n" +
+    "🌐 https://vigilachile.vercel.app";
+  if (navigator.share) {
+    navigator.share({ title: "VigilaChile", text: text, url: "https://vigilachile.vercel.app" }).catch(function() {});
+  } else {
+    navigator.clipboard.writeText(text).then(function() { alert("✅ Información copiada al portapapeles."); });
+  }
+});
 
 // ===== VOLCANES =====
 async function loadVolcanoes() {
@@ -1040,12 +1084,12 @@ function updateLastEvent() {
   if (!el) return;
   var lines = [];
   if (cachedQuakesData.length > 0) {
-    var top = cachedQuakesData.reduce(function(a,b) { return a.magnitude > b.magnitude ? a : b; });
-    lines.push("🌍 Sismo más fuerte: <b style='color:#ffd700'>M" + top.magnitude + "</b> — " + top.place + " · " + timeAgo(top.time));
+    var latest = cachedQuakesData.slice().sort(function(a,b) { return new Date(b.time) - new Date(a.time); })[0];
+    lines.push("🌍 Último sismo: <b style='color:#ffd700'>M" + latest.magnitude + "</b> — " + latest.place + " · " + timeAgo(latest.time));
   }
   if (cachedFiresData.length > 0) {
-    var hottest = cachedFiresData.reduce(function(a,b) { return a.brightness > b.brightness ? a : b; });
-    lines.push("🔥 Foco más intenso: <b style='color:#ff6b35'>" + hottest.brightness + "K</b> · Confianza " + hottest.confidence + "%");
+    var latest_fire = cachedFiresData.slice().sort(function(a,b) { return new Date(b.date) - new Date(a.date); })[0];
+    lines.push("🔥 Último foco: <b style='color:#ff6b35'>" + latest_fire.brightness + "K</b> · Confianza " + latest_fire.confidence + "%");
   }
   if (cachedVolcanoes.length > 0) {
     var alerts = cachedVolcanoes.filter(function(v) { return v.alert !== "Verde"; });
@@ -1094,7 +1138,7 @@ function updateLastEvent() {
     var q = cachedQuakesData || [];
     if (!q.length) { detailBody.innerHTML = "<div style='padding:16px;color:#5c7a9e'>Sin datos.</div>"; return; }
     var html = "";
-    var sorted = q.slice().sort(function(a,b) { return b.magnitude - a.magnitude; });
+    var sorted = q.slice().sort(function(a,b) { return new Date(b.time) - new Date(a.time); });
     sorted.forEach(function(s) {
       var c = s.magnitude >= 5 ? "#ff3333" : s.magnitude >= 4 ? "#ffd700" : s.magnitude >= 3 ? "#4ade80" : "#5c7a9e";
       html += "<div class='qd-item' onclick='map.flyTo([" + s.lat + "," + s.lon + "],10)'>" +
@@ -1109,7 +1153,7 @@ function updateLastEvent() {
     var f = cachedFiresData || [];
     if (!f.length) { detailBody.innerHTML = "<div style='padding:16px;color:#5c7a9e'>Sin focos.</div>"; return; }
     var html = "";
-    f.slice().sort(function(a,b) { return b.brightness - a.brightness; }).forEach(function(fire) {
+    f.slice().sort(function(a,b) { return new Date(b.date) - new Date(a.date); }).forEach(function(fire) {
       html += "<div class='qd-item' onclick='map.flyTo([" + fire.lat + "," + fire.lon + "],12)'>" +
         "<span class='qd-mag' style='color:#ff6b35'>" + fire.brightness + "K</span>" +
         "<span class='qd-place'>Lat " + fire.lat.toFixed(2) + " · Lon " + fire.lon.toFixed(2) + "</span>" +
@@ -1386,6 +1430,16 @@ document.getElementById("toggle-heat").addEventListener("change", async function
   } else {
     if (heatLayer) map.removeLayer(heatLayer);
     document.getElementById("heat-status").classList.add("hidden");
+  }
+});
+
+if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").addEventListener("click", function() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+    if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").textContent = "⊠";
+  } else {
+    document.exitFullscreen();
+    if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").textContent = "⛶";
   }
 });
 
