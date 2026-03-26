@@ -57,9 +57,14 @@ def _is_in_chile(lat, lon):
     elif lat > -46:
         # Zona austral norte (Aysen): frontera ~-71.5
         return lon <= -71.0 and lon >= -76
+    elif lat > -52:
+        # Patagonia (Aysen sur a Magallanes norte): frontera ~-70
+        return lon <= -70.0 and lon >= -76
     else:
-        # Patagonia y Magallanes: frontera con Argentina ~-68 a -70
-        return lon <= -68.0 and lon >= -76
+        # Magallanes y Tierra del Fuego chilena: complejo por el Estrecho
+        # Chile: Punta Arenas (-70.9), Puerto Natales (-72.5), Porvenir (-70.3)
+        # Argentina: Ushuaia (-68.3), Rio Grande (-67.7)
+        return lon <= -69.5 and lon >= -76
 
 
 def get_fires():
@@ -137,7 +142,26 @@ def _get_fires_viirs():
                 continue
 
         logger.info("VIIRS NOAA-20: %d fire detections in Chile", len(fires))
-        return {"count": len(fires), "data": fires, "source": "VIIRS_NOAA20_NRT"}
+
+        # Clasificar focos por intensidad (FRP = Fire Radiative Power en MW)
+        high_frp = [f for f in fires if f["frp"] >= 20]
+        medium_frp = [f for f in fires if 5 <= f["frp"] < 20]
+        low_frp = [f for f in fires if f["frp"] < 5]
+        high_conf = [f for f in fires if f["confidence"] == "85"]
+
+        return {
+            "count": len(fires),
+            "data": fires,
+            "source": "VIIRS_NOAA20_NRT",
+            "summary": {
+                "high_intensity": len(high_frp),
+                "medium_intensity": len(medium_frp),
+                "low_intensity": len(low_frp),
+                "high_confidence": len(high_conf),
+                "max_frp_mw": round(max((f["frp"] for f in fires), default=0), 1),
+                "note": "FRP>=20MW: incendio activo significativo. FRP<5MW: probable quema agricola o anomalia termica menor."
+            }
+        }
 
     except requests.exceptions.Timeout:
         logger.warning("FIRMS VIIRS API timeout")
