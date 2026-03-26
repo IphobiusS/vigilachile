@@ -24,8 +24,42 @@ except Exception:
 
 FIRMS_MAP_KEY = os.getenv("FIRMS_MAP_KEY", "")
 
-# Bounding box Chile: west,south,east,north
+# Bounding box Chile (amplio para captar todo el territorio incluyendo islas)
+# Luego se filtra punto a punto con _is_in_chile()
 CHILE_BBOX = "-76,-56,-66,-17"
+
+
+def _is_in_chile(lat, lon):
+    """
+    Filtro geografico para determinar si un punto esta en territorio chileno.
+    Chile es angosto (~180km) pero muy largo, y la frontera este varia por latitud.
+    Ademas incluye territorios insulares (Juan Fernandez, Isla de Pascua NO incluida
+    porque no tiene incendios forestales relevantes).
+    """
+    # Fuera de rango latitudinal de Chile continental
+    if lat > -17.5 or lat < -56:
+        return False
+
+    # Regla general: Chile continental esta al oeste de la cordillera
+    # La frontera este de Chile varia por latitud:
+    if lat > -24:
+        # Norte grande (Arica a Antofagasta): frontera ~-67.5 a -68.5
+        return lon <= -67.0 and lon >= -76
+    elif lat > -32:
+        # Norte chico (Atacama a Coquimbo): frontera ~-69 a -70
+        return lon <= -68.5 and lon >= -76
+    elif lat > -36:
+        # Zona central (Valparaiso a Maule): frontera ~-69.5 a -70
+        return lon <= -69.5 and lon >= -76
+    elif lat > -42:
+        # Zona sur (Biobio a Los Lagos): frontera ~-71 a -71.5
+        return lon <= -70.5 and lon >= -76
+    elif lat > -46:
+        # Zona austral norte (Aysen): frontera ~-71.5
+        return lon <= -71.0 and lon >= -76
+    else:
+        # Patagonia y Magallanes: frontera con Argentina ~-68 a -70
+        return lon <= -68.0 and lon >= -76
 
 
 def get_fires():
@@ -68,6 +102,11 @@ def _get_fires_viirs():
             try:
                 lat = float(row.get("latitude", 0))
                 lon = float(row.get("longitude", 0))
+
+                # Filter: only Chile territory (exclude Argentina)
+                if not _is_in_chile(lat, lon):
+                    continue
+
                 brightness = float(row.get("bright_ti4", row.get("brightness", 0)))
                 confidence = row.get("confidence", "nominal")
                 acq_date = row.get("acq_date", "")
@@ -133,7 +172,7 @@ def _get_fires_modis_csv():
                 brightness = float(row.get("brightness", 0))
                 confidence = row.get("confidence", "0")
 
-                if not (-56 <= lat <= -17 and -76 <= lon <= -66):
+                if not _is_in_chile(lat, lon):
                     continue
                 if date not in (today, yesterday):
                     continue
