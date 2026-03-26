@@ -36,7 +36,7 @@ app.add_middleware(
 # ===== Cache simple para evitar llamadas repetidas =====
 _cache = {}
 _cache_ttl = 60  # segundos
-_cache_ttl_weather = 7200  # 2 horas para clima (evitar rate limit Open-Meteo)
+_cache_ttl_weather = 7200  # 2 horas para clima (evitar rate limit WeatherAPI)
 
 def get_cached(key, fn):
     now = datetime.now(timezone.utc).timestamp()
@@ -90,16 +90,21 @@ def risk():
 
 @app.get("/analyze")
 def analyze():
+    from concurrent.futures import ThreadPoolExecutor
     q = cached_quakes()
     f = cached_fires()
     r = calculate_risk(q["data"], f["data"])
-    # Gather all threat data for comprehensive report
-    v = get_volcanoes()
-    t = get_tsunami_alerts()
-    try:
-        ws = get_weather_summary()
-    except:
-        ws = None
+    # Gather all threat data in parallel
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        fut_v = executor.submit(get_volcanoes)
+        fut_t = executor.submit(get_tsunami_alerts)
+        fut_ws = executor.submit(lambda: get_weather_summary())
+        v = fut_v.result()
+        t = fut_t.result()
+        try:
+            ws = fut_ws.result()
+        except:
+            ws = None
     return analyze_seismic_pattern(q["data"], f["data"], r, volcanoes=v, tsunami=t, weather_summary=ws)
 
 @app.get("/population/{lat}/{lon}/{magnitude}")
@@ -190,14 +195,26 @@ def trends():
 
 @app.get("/report/pdf")
 def report_pdf():
+    from concurrent.futures import ThreadPoolExecutor
     q = cached_quakes()
     f = cached_fires()
-    r = calculate_risk(q["data"], f["data"])
-    t = get_trends_data()
-    v = get_volcanoes()
-    ts = get_tsunami_alerts()
-    w = cached_weather()
-    reg = calculate_region_risk(q["data"], f["data"])
+
+    # Run independent calls in parallel
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        fut_risk = executor.submit(calculate_risk, q["data"], f["data"])
+        fut_trends = executor.submit(get_trends_data)
+        fut_volc = executor.submit(get_volcanoes)
+        fut_tsun = executor.submit(get_tsunami_alerts)
+        fut_weather = executor.submit(cached_weather)
+        fut_reg = executor.submit(calculate_region_risk, q["data"], f["data"])
+
+        r = fut_risk.result()
+        t = fut_trends.result()
+        v = fut_volc.result()
+        ts = fut_tsun.result()
+        w = fut_weather.result()
+        reg = fut_reg.result()
+
     quakes_data = q["data"]
     fires_data = f["data"]
 
@@ -362,19 +379,21 @@ def commune_info(lat: float, lon: float):
 
 @app.get("/history")
 def history():
-    quakes = []
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     now = datetime.now(timezone.utc)
-    for i in range(1, 31):
+
+    def fetch_day(i):
         date = (now - timedelta(days=i)).strftime("%Y%m%d")
+        day_quakes = []
         try:
             res = requests.get(
                 "https://api.xor.cl/sismo/historic/" + date,
-                timeout=5
+                timeout=8
             )
             data = res.json()
             for s in data.get("events", []):
                 try:
-                    quakes.append({
+                    day_quakes.append({
                         "lat": float(s["latitude"]),
                         "lon": float(s["longitude"]),
                         "magnitude": float(s["magnitude"]["value"]),
@@ -385,5 +404,16 @@ def history():
                 except:
                     continue
         except:
-            continue
+            pass
+        return day_quakes
+
+    quakes = []
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = {executor.submit(fetch_day, i): i for i in range(1, 31)}
+        for future in as_completed(futures):
+            try:
+                quakes.extend(future.result())
+            except:
+                continue
+
     return {"count": len(quakes), "data": quakes}

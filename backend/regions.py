@@ -1,5 +1,10 @@
 REGIONS = [
     {
+        "id": "arica", "name": "Arica y Parinacota", "lat": -18.5, "lon": -70.3,
+        "coastal": True, "population": 250000, "seismic_factor": 0.95,
+        "tsunami_risk": True, "communes": ["Arica", "Putre", "Camarones"]
+    },
+    {
         "id": "tarapaca", "name": "Tarapacá", "lat": -20.2, "lon": -69.3,
         "coastal": True, "population": 300000, "seismic_factor": 0.9,
         "tsunami_risk": True, "communes": ["Iquique", "Alto Hospicio", "Pozo Almonte"]

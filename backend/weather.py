@@ -12,6 +12,7 @@ WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "")
 
 # Coordenadas representativas de cada region de Chile
 REGION_COORDS = [
+    {"id": "arica",         "name": "Arica y Parinacota","lat": -18.5, "lon": -70.3, "zone": "norte_extremo"},
     {"id": "tarapaca",      "name": "Tarapacá",       "lat": -20.2, "lon": -69.3, "zone": "norte_extremo"},
     {"id": "antofagasta",   "name": "Antofagasta",     "lat": -23.6, "lon": -70.4, "zone": "norte"},
     {"id": "atacama",       "name": "Atacama",         "lat": -27.4, "lon": -70.3, "zone": "norte"},

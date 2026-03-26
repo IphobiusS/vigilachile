@@ -60,7 +60,8 @@ body.emergency-mode { animation: emergency-pulse 1s ease-in-out infinite; }
   flex-direction: column;
   padding: 16px 18px;
   gap: 10px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   z-index: 1000;
 }
 body.emergency-mode #sidebar {
@@ -481,13 +482,6 @@ body.emergency-mode #sidebar {
 
 .chart-container { padding: 2px 0; flex: 1; min-height: 60px; overflow: hidden; }
 
-/* ===== FOOTER ===== */
-#footer-OLD-REPLACED {
-  font-size: 0.6rem; color: #2e4060; text-align: center;
-  padding-top: 8px; border-top: 1px solid var(--border);
-  margin-top: auto; flex-shrink: 0;
-}
-
 /* ===== MAP ===== */
 #map { flex: 1; height: 100vh; }
 
@@ -809,7 +803,7 @@ body.emergency-mode #sidebar {
 }
 .kiosk-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 6px; }
 #kiosk-main {
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: 1fr 1fr 2fr;
   gap: 16px; width: 100%; max-width: 1400px; flex: 1; min-height: 0;
 }
 #kiosk-last-quake {

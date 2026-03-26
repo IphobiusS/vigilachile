@@ -54,6 +54,14 @@ L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
 }).addTo(map);
 
 // ===== LOADING HELPER =====
+function fetchWithTimeout(url, options, timeoutMs) {
+  timeoutMs = timeoutMs || 30000;
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, timeoutMs);
+  var opts = Object.assign({}, options || {}, { signal: controller.signal });
+  return fetch(url, opts).finally(function() { clearTimeout(timer); });
+}
+
 function showLoading(containerId, message, submessage) {
   var el = document.getElementById(containerId);
   if (!el) return;
@@ -161,7 +169,12 @@ function hideTooltip() { tooltip.style.display = "none"; }
 
 function timeAgo(utcString) {
   if (!utcString) return "";
-  const then = new Date(utcString.replace(" ", "T") + "Z");
+  var s = utcString.replace(" ", "T");
+  if (!/[Zz+\-]\d{0,4}$/.test(s) && !s.includes("+") && !s.endsWith("Z")) {
+    s += "Z";
+  }
+  const then = new Date(s);
+  if (isNaN(then.getTime())) return "";
   const diff = Math.floor((Date.now() - then.getTime()) / 1000);
   if (diff < 0) return "ahora mismo";
   if (diff < 60) return "hace " + diff + " seg";
@@ -172,7 +185,13 @@ function timeAgo(utcString) {
 
 function utcToChile(utcString) {
   if (!utcString) return "--";
-  const d = new Date(utcString.replace(" ", "T") + "Z");
+  var s = utcString.replace(" ", "T");
+  // Only append Z if the string doesn't already have timezone info
+  if (!/[Zz+\-]\d{0,4}$/.test(s) && !s.includes("+") && !s.endsWith("Z")) {
+    s += "Z";
+  }
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "--";
   return d.toLocaleString("es-CL", {
     timeZone: "America/Santiago",
     day: "2-digit", month: "2-digit", year: "numeric",
@@ -182,7 +201,12 @@ function utcToChile(utcString) {
 
 function isWithin24h(utcString) {
   if (!utcString) return false;
-  const then = new Date(utcString.replace(" ", "T") + "Z");
+  var s = utcString.replace(" ", "T");
+  if (!/[Zz+\-]\d{0,4}$/.test(s) && !s.includes("+") && !s.endsWith("Z")) {
+    s += "Z";
+  }
+  const then = new Date(s);
+  if (isNaN(then.getTime())) return false;
   return (Date.now() - then.getTime()) < 86400000;
 }
 
@@ -230,10 +254,13 @@ async function liveTick() {
     if (lastQuakeTime && newestTime !== lastQuakeTime) {
       showNewQuakeToast(newest);
       if (voiceEnabled) speak("Nuevo sismo detectado. Magnitud " + newest.magnitude + " en " + newest.place + ".");
-      allQuakes = json.data;
+    }
+    // Always update data and re-render
+    allQuakes = json.data;
     cachedQuakesData = json.data;
     try { document.getElementById("qp-quakes-count").textContent = json.data.length; } catch(e) {}
     updateLastEvent();
+    if (lastQuakeTime && newestTime !== lastQuakeTime) {
       renderQuakes(allQuakes);
     }
     lastQuakeTime = newestTime;
@@ -271,13 +298,7 @@ document.getElementById("ai-dock-bar").addEventListener("click", function() {
   document.getElementById("ai-dock-toggle").textContent = aiCollapsed ? "▲" : "▼";
 });
 
-if(document.getElementById("btn-ai")) if(document.getElementById("btn-ai")) document.getElementById("btn-ai").addEventListener("click", function() {
-  const btn = document.getElementById("btn-ai");
-  aiCollapsed = !aiCollapsed;
-  document.getElementById("ai-dock-body").classList.toggle("collapsed", aiCollapsed);
-  document.getElementById("ai-dock-toggle").textContent = aiCollapsed ? "▲" : "▼";
-  btn.classList.toggle("active", !aiCollapsed);
-});
+// btn-ai removed from sidebar
 
 // ===== MODO VOZ =====
 function speak(text) {
@@ -288,14 +309,7 @@ function speak(text) {
   window.speechSynthesis.speak(utter);
 }
 
-if(document.getElementById("btn-voice")) if(document.getElementById("btn-voice")) document.getElementById("btn-voice").addEventListener("click", function() {
-  voiceEnabled = !voiceEnabled;
-  const btn = document.getElementById("btn-voice");
-  btn.textContent = voiceEnabled ? "🔊" : "🔇";
-  btn.classList.toggle("active", voiceEnabled);
-  if (voiceEnabled) speak("Modo voz activado. VigilaChile monitoreando desastres en tiempo real.");
-  else window.speechSynthesis.cancel();
-});
+// btn-voice removed from sidebar
 
 // ===== MI UBICACIÓN =====
 function distanceKm(lat1, lon1, lat2, lon2) {
@@ -306,31 +320,7 @@ function distanceKm(lat1, lon1, lat2, lon2) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 }
 
-if(document.getElementById("btn-location")) if(document.getElementById("btn-location")) document.getElementById("btn-location").addEventListener("click", function() {
-  if (!navigator.geolocation) return alert("Tu navegador no soporta geolocalización.");
-  navigator.geolocation.getCurrentPosition(function(pos) {
-    const lat = pos.coords.latitude, lon = pos.coords.longitude;
-    userLocation = { lat, lon };
-    if (userMarker) map.removeLayer(userMarker);
-    userMarker = L.marker([lat, lon], {
-      icon: L.divIcon({ className: "user-marker", iconSize: [16, 16] })
-    }).addTo(map).bindPopup("📍 Tu ubicación").openPopup();
-    map.setView([lat, lon], 8);
-    document.getElementById("location-card").classList.remove("hidden");
-    if (allQuakes.length > 0) {
-      const nearest = allQuakes.reduce(function(a, b) {
-        return distanceKm(lat, lon, a.lat, a.lon) < distanceKm(lat, lon, b.lat, b.lon) ? a : b;
-      });
-      const dist = distanceKm(lat, lon, nearest.lat, nearest.lon);
-      const risk = dist < 50 ? "⚠️ Zona de riesgo" : dist < 150 ? "🟡 Precaución" : "✅ Zona segura";
-      document.getElementById("location-content").innerHTML =
-        "📍 <b>Tu ubicación detectada</b><br>Sismo más cercano: <b>M" + nearest.magnitude + "</b><br>" +
-        nearest.place + "<br>Distancia: <b>" + dist + " km</b><br>Estado: <b>" + risk + "</b>";
-      speak("Tu sismo más cercano es de magnitud " + nearest.magnitude + ", a " + dist + " kilómetros.");
-    }
-    if(document.getElementById("btn-location")) if(document.getElementById("btn-location")) if(document.getElementById("btn-location")) document.getElementById("btn-location").classList.add("active");
-  }, function() { alert("No se pudo obtener tu ubicación."); });
-});
+// btn-location removed from sidebar
 
 // ===== COMPARTIR =====
 function getShareText(q) {
@@ -348,19 +338,7 @@ function getShareButtons(q) {
     "</div>";
 }
 
-if(document.getElementById("btn-share")) if(document.getElementById("btn-share")) document.getElementById("btn-share").addEventListener("click", function() {
-  const text =
-    "🛰️ VigilaChile — Monitoreo de desastres naturales en tiempo real\n" +
-    "📊 " + document.getElementById("quake-count").textContent + " sismos · " +
-    "🔥 " + document.getElementById("fire-count").textContent + " focos activos · " +
-    "🚨 Riesgo: " + document.getElementById("risk-score").textContent + "\n" +
-    "🌐 https://vigilachile.vercel.app";
-  if (navigator.share) {
-    navigator.share({ title: "VigilaChile", text: text, url: "https://vigilachile.vercel.app" }).catch(function() {});
-  } else {
-    navigator.clipboard.writeText(text).then(function() { alert("✅ Información copiada al portapapeles."); });
-  }
-});
+// btn-share removed from sidebar
 
 // ===== VOLCANES =====
 async function loadVolcanoes() {
@@ -469,7 +447,7 @@ document.getElementById("btn-pdf").addEventListener("click", async function() {
   const btn = document.getElementById("btn-pdf");
   btn.textContent = "⏳"; btn.classList.add("active");
   try {
-    const res = await fetch(API + "/report/pdf");
+    const res = await fetchWithTimeout(API + "/report/pdf", null, 60000);
     if (!res.ok) throw new Error("Error " + res.status);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -685,7 +663,7 @@ async function loadStats() {
   });
 
   try {
-    const res = await fetch(API + "/history");
+    const res = await fetchWithTimeout(API + "/history", null, 60000);
     const json = await res.json();
     const data = json.data;
     const total = data.length;
@@ -1034,7 +1012,7 @@ async function loadAI() {
   document.getElementById("ai-report").textContent = "🤖 Analizando sismos, incendios, volcanes, clima y tsunami...";
   document.getElementById("ai-dock-preview").textContent = "Analizando todas las amenazas del territorio...";
   try {
-    const res = await fetch(API + "/analyze");
+    const res = await fetchWithTimeout(API + "/analyze", null, 45000);
     const data = await res.json();
     cachedAIReport = data.report;
 
@@ -1267,7 +1245,7 @@ async function loadHeatmap() {
     status.textContent = messages[i];
   }, 8000);
   try {
-    const res = await fetch(API + "/history");
+    const res = await fetchWithTimeout(API + "/history", null, 60000);
     const json = await res.json();
     clearInterval(msgInterval);
     status.textContent = "✅ " + json.count + " sismos cargados";
@@ -1297,37 +1275,7 @@ function notify(title, body) {
   }
 }
 
-let magChart = null;
-function renderChart(quakes) {
-  const bins = { "2.5-3": 0, "3-4": 0, "4-5": 0, "5-6": 0, "6+": 0 };
-  quakes.forEach(function(q) {
-    if (q.magnitude < 3) bins["2.5-3"]++;
-    else if (q.magnitude < 4) bins["3-4"]++;
-    else if (q.magnitude < 5) bins["4-5"]++;
-    else if (q.magnitude < 6) bins["5-6"]++;
-    else bins["6+"]++;
-  });
-  var magCanvas = document.getElementById("magChart"); if(!magCanvas) return; const ctx = magCanvas.getContext("2d");
-  if (magChart) magChart.destroy();
-  magChart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: Object.keys(bins),
-      datasets: [{
-        data: Object.values(bins),
-        backgroundColor: ["#4ade80", "#4ade80", "#ffd700", "#ff9500", "#ff3333"],
-        borderRadius: 4, borderSkipped: false
-      }]
-    },
-    options: {
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { color: "#5c7a9e", font: { size: 10 } }, grid: { color: "#1e2d4a" } },
-        y: { ticks: { color: "#5c7a9e", font: { size: 10 } }, grid: { color: "#1e2d4a" } }
-      }
-    }
-  });
-}
+// ===== HEATMAP =====
 
 function checkAlert(quakes) {
   const critical = quakes.find(function(q) { return q.magnitude >= 6.5; });
@@ -1463,15 +1411,7 @@ document.getElementById("toggle-heat").addEventListener("change", async function
   }
 });
 
-if(document.getElementById("fullscreen-btn")) if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").addEventListener("click", function() {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen();
-    if(document.getElementById("fullscreen-btn")) if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").textContent = "⊠";
-  } else {
-    document.exitFullscreen();
-    if(document.getElementById("fullscreen-btn")) if(document.getElementById("fullscreen-btn")) document.getElementById("fullscreen-btn").textContent = "⛶";
-  }
-});
+// fullscreen-btn removed from sidebar
 
 function startCountdown() {
   let seconds = 300;
@@ -1518,7 +1458,7 @@ function updateThreatSummary() {
     var rainy = cachedWeatherSummary.rainy_regions_count || 0;
     climaText = lvl === "SIN RIESGO" ? "Sin riesgo activo" :
                 rainy + " regiones con lluvia";
-    climaBarPct = Math.round((rainy / 15) * 100);
+    climaBarPct = Math.round((rainy / 16) * 100);
   }
   setBadge(rows[2], climaColor, climaText, climaBarPct);
 
@@ -1688,7 +1628,7 @@ document.getElementById("weather-close").addEventListener("click", function() {
 });
 
 async function loadWeather() {
-  showLoading("weather-body", "Consultando datos meteorológicos", "Conectando con Open-Meteo para 15 regiones de Chile...");
+  showLoading("weather-body", "Consultando datos meteorológicos", "Conectando con WeatherAPI para 16 regiones de Chile...");
   try {
     var res = await fetch(API + "/weather");
     if (!res.ok) throw new Error("Error " + res.status);
@@ -1915,13 +1855,17 @@ async function loadWeather() {
 })();
 
 async function refresh() {
+  // Load quakes first (needed by many downstream UI updates)
   await loadQuakes();
-  await loadFires();
-  await loadRisk();
-  await loadTrends();
-  await loadVolcanoes();
-  await loadTsunami();
-  await loadRegions();
+  // Then fire independent requests in parallel
+  await Promise.all([
+    loadFires(),
+    loadRisk(),
+    loadTrends(),
+    loadVolcanoes(),
+    loadTsunami(),
+    loadRegions()
+  ]);
   loadAI();
   loadWeatherSummary();
   checkEmailAlerts();

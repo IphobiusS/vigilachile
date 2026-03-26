@@ -158,7 +158,7 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     elements.append(Spacer(1, 10))
 
     # CLIMA
-    elements.append(Paragraph("Clima e Inundaciones — Open-Meteo", sec_s))
+    elements.append(Paragraph("Clima e Inundaciones — WeatherAPI", sec_s))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=clima_c))
     elements.append(Spacer(1, 6))
     weather_data = (weather if isinstance(weather, list) else weather.get("data", [])) if weather else []
@@ -202,7 +202,7 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     # FOOTER
     elements.append(HRFlowable(width="100%", thickness=1, color=primary))
     elements.append(Spacer(1, 6))
-    elements.append(Paragraph("Fuentes: CSN · Universidad de Chile · NASA FIRMS · USGS · SERNAGEOMIN · Open-Meteo · SENAPRED", small_s))
+    elements.append(Paragraph("Fuentes: CSN · Universidad de Chile · NASA FIRMS · USGS · SERNAGEOMIN · WeatherAPI · SENAPRED", small_s))
     elements.append(Paragraph("VigilaChile — Plataforma de Monitoreo Integral de Desastres Naturales en Tiempo Real", small_s))
 
     doc.build(elements)

@@ -4,6 +4,11 @@ Incluye las principales comunas de cada región con lat/lon para flyTo.
 """
 
 COMMUNES = [
+    # Arica y Parinacota
+    {"name": "Arica", "region": "Arica y Parinacota", "region_id": "arica", "lat": -18.4783, "lon": -70.3126},
+    {"name": "Putre", "region": "Arica y Parinacota", "region_id": "arica", "lat": -18.1953, "lon": -69.5586},
+    {"name": "Camarones", "region": "Arica y Parinacota", "region_id": "arica", "lat": -19.0097, "lon": -69.8556},
+    {"name": "General Lagos", "region": "Arica y Parinacota", "region_id": "arica", "lat": -17.7667, "lon": -69.5000},
     # Tarapacá
     {"name": "Iquique", "region": "Tarapacá", "region_id": "tarapaca", "lat": -20.2133, "lon": -70.1503},
     {"name": "Alto Hospicio", "region": "Tarapacá", "region_id": "tarapaca", "lat": -20.2690, "lon": -70.1005},
