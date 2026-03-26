@@ -15,14 +15,32 @@
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-title" content="VigilaChile"/>
   <meta name="description" content="Monitoreo de desastres naturales en tiempo real para Chile. Sismos, incendios, volcanes y tsunamis."/>
+  <meta name="keywords" content="sismos Chile, terremotos, incendios forestales, volcanes, tsunami, SERNAGEOMIN, CSN, NASA FIRMS, VIIRS, monitoreo desastres, alerta temprana"/>
+  <meta name="author" content="Sebastián Latorre Muñoz"/>
+  <meta name="robots" content="index, follow"/>
+
+  <!-- Open Graph (WhatsApp, Facebook, LinkedIn) -->
+  <meta property="og:title" content="VigilaChile — Monitoreo Multi-Amenaza en Tiempo Real"/>
+  <meta property="og:description" content="Sismos, incendios, volcanes, tsunami y clima de Chile en tiempo real. Datos satelitales VIIRS, análisis IA y alertas tempranas."/>
+  <meta property="og:image" content="https://vigilachile.vercel.app/icon-512.png"/>
+  <meta property="og:url" content="https://vigilachile.vercel.app"/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:locale" content="es_CL"/>
+  <meta property="og:site_name" content="VigilaChile"/>
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary"/>
+  <meta name="twitter:title" content="VigilaChile — Monitoreo de Desastres"/>
+  <meta name="twitter:description" content="Sismos, incendios, volcanes y tsunami de Chile en tiempo real. Datos satelitales + IA."/>
+  <meta name="twitter:image" content="https://vigilachile.vercel.app/icon-512.png"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>@keyframes spin{to{transform:rotate(360deg)}}@keyframes loadbar{0%{width:0;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0;margin-left:100%}}</style>
   <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
-  <button id="mobile-menu-btn" title="Menú">☰</button>
-  <div id="mobile-overlay" class="hidden"></div>
-  <div id="sidebar">
+  <button id="mobile-menu-btn" title="Menú" aria-label="Abrir menú de navegación" aria-expanded="false">☰</button>
+  <div id="mobile-overlay" class="hidden" role="presentation"></div>
+  <nav id="sidebar" role="navigation" aria-label="Panel de monitoreo">
     <div id="logo">
       <h1>🛰️ VigilaChile</h1>
       <p>Monitoreo de desastres en tiempo real</p>
@@ -33,30 +51,30 @@
     </div>
 
     <!-- Stats: 1 fila compacta -->
-    <div id="stats-grid">
-      <div class="stat-card" id="risk-card">
-        <div class="stat-icon">🚨</div>
+    <div id="stats-grid" role="region" aria-label="Estadísticas en tiempo real">
+      <div class="stat-card" id="risk-card" role="status" aria-label="Índice de riesgo">
+        <div class="stat-icon" aria-hidden="true">🚨</div>
         <div class="stat-info">
           <span class="stat-number" id="risk-score">--</span>
           <span class="stat-label" id="risk-level">Riesgo</span>
         </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon">🔥</div>
+      <div class="stat-card" role="status" aria-label="Focos de incendio activos">
+        <div class="stat-icon" aria-hidden="true">🔥</div>
         <div class="stat-info">
           <span class="stat-number" id="fire-count">--</span>
           <span class="stat-label">Focos</span>
         </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon">🌍</div>
+      <div class="stat-card" role="status" aria-label="Cantidad de sismos">
+        <div class="stat-icon" aria-hidden="true">🌍</div>
         <div class="stat-info">
           <span class="stat-number" id="quake-count">--</span>
           <span class="stat-label">Sismos</span>
         </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon">📊</div>
+      <div class="stat-card" role="status" aria-label="Magnitud máxima registrada">
+        <div class="stat-icon" aria-hidden="true">📊</div>
         <div class="stat-info">
           <span class="stat-number" id="max-mag">--</span>
           <span class="stat-label">Mag. máx</span>
@@ -89,7 +107,7 @@
     <div id="search-container">
       <div id="search-box">
         <span class="search-icon">🔍</span>
-        <input type="text" id="search-input" placeholder="Buscar comuna, ciudad o localidad..." autocomplete="off"/>
+        <input type="text" id="search-input" placeholder="Buscar comuna, ciudad o localidad..." autocomplete="off" aria-label="Buscar comuna o localidad"/>
         <button id="search-clear" class="hidden">✕</button>
       </div>
       <ul id="search-results" class="hidden"></ul>
@@ -101,7 +119,7 @@
         <h3>Capas</h3>
         <div class="mag-filter-inline">
           <span class="mag-label">Mag. mín:</span>
-          <input type="range" id="mag-slider" min="2.5" max="7" step="0.5" value="2.5"/>
+          <input type="range" id="mag-slider" min="2.5" max="7" step="0.5" value="2.5" aria-label="Filtro de magnitud mínima"/>
           <span id="mag-value" class="mag-val">2.5</span>
         </div>
       </div>
@@ -148,13 +166,13 @@
     </div>
 
     <!-- Action buttons -->
-    <div id="sidebar-actions">
-      <button id="btn-pdf" title="Descargar PDF">📄</button>
-      <button id="btn-stats" title="Estadísticas 30d">📊</button>
-      <button id="btn-vuln" title="Vulnerabilidad">🛡️</button>
-      <button id="btn-evacuate" title="Plan evacuación">🧭</button>
-      <button id="btn-weather" title="Clima detallado">🌧️</button>
-      <button id="btn-kiosk" title="Modo quiosco">📺</button>
+    <div id="sidebar-actions" role="toolbar" aria-label="Acciones">
+      <button id="btn-pdf" title="Descargar PDF" aria-label="Descargar reporte PDF">📄</button>
+      <button id="btn-stats" title="Estadísticas 30d" aria-label="Ver estadísticas históricas">📊</button>
+      <button id="btn-vuln" title="Vulnerabilidad" aria-label="Ver índice de vulnerabilidad">🛡️</button>
+      <button id="btn-evacuate" title="Plan evacuación" aria-label="Calculadora de evacuación">🧭</button>
+      <button id="btn-weather" title="Clima detallado" aria-label="Ver clima e inundaciones">🌧️</button>
+      <button id="btn-kiosk" title="Modo quiosco" aria-label="Activar modo quiosco TV">📺</button>
     </div>
 
     <!-- Último evento -->
@@ -167,9 +185,9 @@
       <div id="footer-sources">CSN · NASA FIRMS · SERNAGEOMIN · USGS · WeatherAPI</div>
       <div id="footer-credit"><a href="https://linkedin.com/m/in/sebastian-latorre-munoz/" target="_blank" rel="noopener">Desarrollado por Sebastián Latorre Muñoz</a></div>
     </div>
-  </div>
+  </nav>
 
-  <div id="map"></div>
+  <div id="map" role="application" aria-label="Mapa de desastres naturales de Chile"></div>
 
   <div id="events-float" style="display:none">
     <div id="events-float-header">

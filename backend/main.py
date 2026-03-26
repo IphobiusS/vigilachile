@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fires import get_fires
@@ -14,24 +14,76 @@ from weather import get_weather_data, get_weather_summary
 from communes import search_communes, COMMUNES
 import requests
 import os
+import logging
 from datetime import datetime, timedelta, timezone
+
+# ===== Logging =====
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("vigilachile")
 
 try:
     from dotenv import load_dotenv
     load_dotenv()
-except:
+except Exception:
     pass
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
-app = FastAPI()
+app = FastAPI(
+    title="VigilaChile API",
+    description="Monitoreo multi-amenaza en tiempo real para Chile",
+    version="2.0.0"
+)
+
+# ===== CORS — restringido a dominios conocidos =====
+ALLOWED_ORIGINS = [
+    "https://vigilachile.vercel.app",
+    "https://vigilachile.cl",
+    "http://localhost:3000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "http://localhost:8080",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+# ===== Metricas de impacto =====
+_metrics = {
+    "started_at": datetime.now(timezone.utc).isoformat(),
+    "total_requests": 0,
+    "requests_by_endpoint": {},
+    "alerts_sent": 0,
+    "alerts_log": [],
+    "pdf_generated": 0,
+    "unique_sessions": set(),
+    "last_quake_detected": None,
+    "last_fire_count": 0,
+    "errors": 0,
+}
+
+
+@app.middleware("http")
+async def track_metrics(request: Request, call_next):
+    _metrics["total_requests"] += 1
+    path = request.url.path
+    _metrics["requests_by_endpoint"][path] = _metrics["requests_by_endpoint"].get(path, 0) + 1
+
+    # Track unique sessions via User-Agent + IP (approximation)
+    ua = request.headers.get("user-agent", "")[:50]
+    client = request.client.host if request.client else "unknown"
+    session_key = client + "|" + ua[:20]
+    _metrics["unique_sessions"].add(session_key)
+
+    response = await call_next(request)
+    return response
 
 # ===== Cache simple para evitar llamadas repetidas =====
 _cache = {}
@@ -67,7 +119,38 @@ def cached_weather():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {
+        "status": "ok",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "version": "2.0.0",
+        "uptime_since": _metrics["started_at"]
+    }
+
+@app.get("/metrics")
+def metrics():
+    """Metricas de impacto y uso de la plataforma."""
+    now = datetime.now(timezone.utc)
+    started = datetime.fromisoformat(_metrics["started_at"])
+    uptime_hours = round((now - started).total_seconds() / 3600, 1)
+
+    return {
+        "uptime_hours": uptime_hours,
+        "started_at": _metrics["started_at"],
+        "total_requests": _metrics["total_requests"],
+        "unique_sessions_approx": len(_metrics["unique_sessions"]),
+        "requests_by_endpoint": dict(sorted(
+            _metrics["requests_by_endpoint"].items(),
+            key=lambda x: x[1], reverse=True
+        )),
+        "alerts_sent": _metrics["alerts_sent"],
+        "alerts_log": _metrics["alerts_log"][-20:],
+        "pdf_generated": _metrics["pdf_generated"],
+        "last_quake_detected": _metrics["last_quake_detected"],
+        "last_fire_count": _metrics["last_fire_count"],
+        "errors": _metrics["errors"],
+        "cache_keys": list(_cache.keys()),
+        "timestamp": now.isoformat()
+    }
 
 @app.get("/cache/clear")
 def cache_clear():
@@ -144,6 +227,14 @@ def check_alerts():
             sent = send_quake_alert(quake)
             if sent:
                 triggered.append(quake["place"])
+                _metrics["alerts_sent"] += 1
+                _metrics["alerts_log"].append({
+                    "time": datetime.now(timezone.utc).isoformat(),
+                    "place": quake["place"],
+                    "magnitude": quake["magnitude"]
+                })
+    if q["data"]:
+        _metrics["last_quake_detected"] = q["data"][0].get("place", "")
     return {"checked": len(q["data"]), "triggered": triggered}
 
 def get_trends_data():
@@ -287,6 +378,7 @@ def report_pdf():
 
     pdf_bytes = generate_pdf(quakes_data, fires_data, r, ai, t,
                              volcanoes=v, tsunami=ts, weather=w, regions=reg)
+    _metrics["pdf_generated"] += 1
     now_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
     return Response(
         content=pdf_bytes,

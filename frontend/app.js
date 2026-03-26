@@ -28,12 +28,14 @@ map.setView([-33.5, -70.5], 5);
     overlay.classList.add("visible");
     overlay.classList.remove("hidden");
     menuBtn.textContent = "✕";
+    menuBtn.setAttribute("aria-expanded", "true");
   }
   function closeMenu() {
     sidebar.classList.remove("open");
     overlay.classList.remove("visible");
     overlay.classList.add("hidden");
     menuBtn.textContent = "☰";
+    menuBtn.setAttribute("aria-expanded", "false");
     map.invalidateSize();
   }
   menuBtn.addEventListener("click", function() {
