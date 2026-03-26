@@ -1084,12 +1084,12 @@ function updateLastEvent() {
   if (!el) return;
   var lines = [];
   if (cachedQuakesData.length > 0) {
-    var top = cachedQuakesData.reduce(function(a,b) { return a.magnitude > b.magnitude ? a : b; });
-    lines.push("🌍 Sismo más fuerte: <b style='color:#ffd700'>M" + top.magnitude + "</b> — " + top.place + " · " + timeAgo(top.time));
+    var latest = cachedQuakesData.slice().sort(function(a,b) { return new Date(b.time) - new Date(a.time); })[0];
+    lines.push("🌍 Último sismo: <b style='color:#ffd700'>M" + latest.magnitude + "</b> — " + latest.place + " · " + timeAgo(latest.time));
   }
   if (cachedFiresData.length > 0) {
-    var hottest = cachedFiresData.reduce(function(a,b) { return a.brightness > b.brightness ? a : b; });
-    lines.push("🔥 Foco más intenso: <b style='color:#ff6b35'>" + hottest.brightness + "K</b> · Confianza " + hottest.confidence + "%");
+    var latest_fire = cachedFiresData.slice().sort(function(a,b) { return new Date(b.date) - new Date(a.date); })[0];
+    lines.push("🔥 Último foco: <b style='color:#ff6b35'>" + latest_fire.brightness + "K</b> · Confianza " + latest_fire.confidence + "%");
   }
   if (cachedVolcanoes.length > 0) {
     var alerts = cachedVolcanoes.filter(function(v) { return v.alert !== "Verde"; });
@@ -1139,100 +1139,41 @@ function updateLastEvent() {
     if (!q.length) { detailBody.innerHTML = "<div style='padding:16px;color:#5c7a9e'>Sin datos.</div>"; return; }
     var html = "";
     var sorted = q.slice().sort(function(a,b) { return new Date(b.time) - new Date(a.time); });
-    sorted.forEach(function(s, i) {
+    sorted.forEach(function(s) {
       var c = s.magnitude >= 5 ? "#ff3333" : s.magnitude >= 4 ? "#ffd700" : s.magnitude >= 3 ? "#4ade80" : "#5c7a9e";
-      html += "<div class='qd-item' data-qd-quake='" + i + "'>" +
+      html += "<div class='qd-item' onclick='map.flyTo([" + s.lat + "," + s.lon + "],10)'>" +
         "<span class='qd-mag' style='color:" + c + "'>M" + s.magnitude + "</span>" +
         "<span class='qd-place'>" + s.place + "</span>" +
         "<span class='qd-meta'>" + (s.depth || "--") + "km · " + timeAgo(s.time) + "</span></div>";
     });
     detailBody.innerHTML = html;
-    detailBody.querySelectorAll("[data-qd-quake]").forEach(function(el) {
-      el.addEventListener("click", function() {
-        var s = sorted[parseInt(el.getAttribute("data-qd-quake"))];
-        var c = s.magnitude >= 5 ? "#ff3333" : s.magnitude >= 4 ? "#ffd700" : "#4ade80";
-        map.flyTo([s.lat, s.lon], 10);
-        L.popup({ maxWidth: 320, className: "detail-popup" })
-          .setLatLng([s.lat, s.lon])
-          .setContent(
-            "<div style='font-size:0.85rem;line-height:1.7'>" +
-            "<b style='font-size:1.1rem;color:" + c + "'>🌍 Sismo M" + s.magnitude + "</b><br>" +
-            "<b>📍 Ubicación:</b> " + s.place + "<br>" +
-            "<b>🕐 Fecha/Hora:</b> " + utcToChile(s.time) + "<br>" +
-            "<b>⏱️ Hace:</b> " + timeAgo(s.time) + "<br>" +
-            "<b>🕳️ Profundidad:</b> " + s.depth + " km<br>" +
-            "<b>📐 Coordenadas:</b> " + s.lat.toFixed(3) + "°, " + s.lon.toFixed(3) + "°" +
-            (s.url ? "<br><a href='" + s.url + "' target='_blank' style='color:#4fc3f7'>Ver informe CSN →</a>" : "") +
-            "</div>"
-          ).openOn(map);
-      });
-    });
   });
 
   togglePanel("qp-fires", "🔥 Focos activos", function() {
     var f = cachedFiresData || [];
     if (!f.length) { detailBody.innerHTML = "<div style='padding:16px;color:#5c7a9e'>Sin focos.</div>"; return; }
     var html = "";
-    var sorted = f.slice().sort(function(a,b) { return new Date(b.date) - new Date(a.date); });
-    sorted.forEach(function(fire, i) {
-      html += "<div class='qd-item' data-qd-fire='" + i + "'>" +
+    f.slice().sort(function(a,b) { return b.brightness - a.brightness; }).forEach(function(fire) {
+      html += "<div class='qd-item' onclick='map.flyTo([" + fire.lat + "," + fire.lon + "],12)'>" +
         "<span class='qd-mag' style='color:#ff6b35'>" + fire.brightness + "K</span>" +
         "<span class='qd-place'>Lat " + fire.lat.toFixed(2) + " · Lon " + fire.lon.toFixed(2) + "</span>" +
         "<span class='qd-meta'>Conf: " + fire.confidence + "%</span></div>";
     });
     detailBody.innerHTML = html;
-    detailBody.querySelectorAll("[data-qd-fire]").forEach(function(el) {
-      el.addEventListener("click", function() {
-        var fire = sorted[parseInt(el.getAttribute("data-qd-fire"))];
-        map.flyTo([fire.lat, fire.lon], 12);
-        L.popup({ maxWidth: 320, className: "detail-popup" })
-          .setLatLng([fire.lat, fire.lon])
-          .setContent(
-            "<div style='font-size:0.85rem;line-height:1.7'>" +
-            "<b style='font-size:1.1rem;color:#ff6b35'>🔥 Foco de Calor</b><br>" +
-            "<b>🌡️ Brillo:</b> " + fire.brightness + " K<br>" +
-            "<b>✅ Confianza:</b> " + fire.confidence + "%<br>" +
-            "<b>📅 Fecha:</b> " + fire.date + "<br>" +
-            "<b>📐 Coordenadas:</b> " + fire.lat.toFixed(4) + "°, " + fire.lon.toFixed(4) + "°<br>" +
-            "<b>📡 Fuente:</b> NASA FIRMS (MODIS)" +
-            "</div>"
-          ).openOn(map);
-      });
-    });
   });
 
   togglePanel("qp-volcanoes", "🌋 Volcanes", function() {
     var v = cachedVolcanoes || [];
     if (!v.length) { detailBody.innerHTML = "<div style='padding:16px;color:#5c7a9e'>Sin datos.</div>"; return; }
     var html = "";
-    v.forEach(function(vol, i) {
+    v.forEach(function(vol) {
       var vc = vol.alert === "Amarilla" ? "#ffd700" : vol.alert === "Naranja" ? "#ff9500" : vol.alert === "Roja" ? "#ff3333" : "#4ade80";
-      html += "<div class='qd-item' data-qd-volc='" + i + "'>" +
+      html += "<div class='qd-item' onclick='map.flyTo([" + vol.lat + "," + vol.lon + "],10)'>" +
         "<span class='qd-mag' style='color:" + vc + "'>" + vol.alert + "</span>" +
         "<span class='qd-place'><b>" + vol.name + "</b> · " + vol.region + "</span>" +
         "<span class='qd-meta'>" + vol.elevation + "m</span></div>";
     });
     detailBody.innerHTML = html;
-    detailBody.querySelectorAll("[data-qd-volc]").forEach(function(el) {
-      el.addEventListener("click", function() {
-        var vol = v[parseInt(el.getAttribute("data-qd-volc"))];
-        var vc = vol.alert === "Amarilla" ? "#ffd700" : vol.alert === "Naranja" ? "#ff9500" : vol.alert === "Roja" ? "#ff3333" : "#4ade80";
-        map.flyTo([vol.lat, vol.lon], 10);
-        L.popup({ maxWidth: 320, className: "detail-popup" })
-          .setLatLng([vol.lat, vol.lon])
-          .setContent(
-            "<div style='font-size:0.85rem;line-height:1.7'>" +
-            "<b style='font-size:1.1rem;color:" + vc + "'>🌋 " + vol.name + "</b><br>" +
-            "<b>⚠️ Alerta:</b> <span style='color:" + vc + "'>" + vol.alert + "</span><br>" +
-            "<b>🗺️ Región:</b> " + vol.region + "<br>" +
-            "<b>⛰️ Elevación:</b> " + vol.elevation + " m s.n.m.<br>" +
-            "<b>📐 Coordenadas:</b> " + vol.lat.toFixed(3) + "°, " + vol.lon.toFixed(3) + "°<br>" +
-            "<b>📋 Estado:</b> " + vol.description + "<br>" +
-            "<b>📡 Fuente:</b> SERNAGEOMIN" +
-            "</div>"
-          ).openOn(map);
-      });
-    });
   });
 
   togglePanel("qp-clima", "🌡️ Clima", function() {
