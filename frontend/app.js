@@ -1035,20 +1035,71 @@ async function runPostDisasterSim() {
   detailContent.innerHTML =
     "<h2 style='color:#ff6b35'>⚡ SIMULACIÓN POST-DESASTRE</h2>" +
     "<div style='background:#ff6b3515;border:1px solid #ff6b3544;border-radius:6px;padding:8px;margin:8px 0;font-size:0.7rem;color:#ff9500'>" +
-    "⚠️ Esto es una <b>simulación</b> — no es un evento real.<br>Demuestra la capacidad de evaluación post-desastre de VigilaChile.</div>" +
+    "⚠️ Esto es una <b>simulación</b> — no es un evento real.<br>Demuestra las capacidades de evaluación post-desastre y planificación de drones de VigilaChile.</div>" +
     "<p>📍 Concepción, Biobío</p>" +
     "<p>💪 Magnitud: <span style='color:#ff3333;font-weight:700'>M" + simMag + "</span></p>" +
     "<p>🕳️ Profundidad: " + simDepth + " km (superficial)</p>" +
-    "<div class='prep-tip' id='post-disaster-info'>🛡️ Cargando evaluación post-desastre...</div>";
+    "<div class='prep-tip' id='post-disaster-info'>🛡️ Cargando evaluación post-desastre...</div>" +
+    "<div class='prep-tip' id='drone-plan-info'>🚁 Cargando plan de despliegue de drones...</div>";
   detailPanel.classList.remove("hidden");
 
+  // Cargar ambos en paralelo
   try {
     var res = await fetch(API + "/post-disaster/" + simLat + "/" + simLon + "/" + simMag + "?depth=" + simDepth);
     var d = await res.json();
     document.getElementById("post-disaster-info").innerHTML = formatPostDisaster(d);
   } catch(e) {
-    document.getElementById("post-disaster-info").innerHTML = "🛡️ Evaluación no disponible — backend en cold start, intente en 30s";
+    document.getElementById("post-disaster-info").innerHTML = "🛡️ Evaluación no disponible — intente en 30s";
   }
+
+  try {
+    var res2 = await fetch(API + "/drone/plan?drones=3");
+    var dp = await res2.json();
+    document.getElementById("drone-plan-info").innerHTML = formatDronePlan(dp);
+  } catch(e) {
+    document.getElementById("drone-plan-info").innerHTML = "🚁 Plan de drones no disponible — intente en 30s";
+  }
+}
+
+function formatDronePlan(dp) {
+  if (dp.status !== "plan_generado") {
+    return "🚁 " + (dp.message || "Sin datos de incendio para planificar rutas");
+  }
+  var s = dp.summary;
+  var html = "<b>🚁 Plan de Despliegue de Drones</b><br>";
+  html += "<span style='font-size:0.72rem;color:#8a9bbd'>Rutas generadas automáticamente sobre " + s.total_clusters_detected + " frentes DBSCAN</span><br>";
+  html += "<hr style='border-color:#1e2d4a44;margin:4px 0'>";
+  html += "🎯 Frentes prioritarios: <b>" + s.priority_clusters + "</b> de " + s.total_clusters_detected + " detectados<br>";
+  html += "✅ Cubiertos por drones: <b>" + s.clusters_covered + "</b><br>";
+  html += "🚁 Drones necesarios: <b>" + s.drones_deployed + "</b><br>";
+  html += "<hr style='border-color:#1e2d4a44;margin:4px 0'>";
+
+  dp.missions.forEach(function(m) {
+    var mColor = m.priority === "ALTA" ? "#ff3333" : "#ff9500";
+    html += "<div style='margin:6px 0;padding:6px 8px;background:#0d122666;border-left:3px solid " + mColor + ";border-radius:4px'>";
+    html += "<b style='color:" + mColor + "'>Dron " + m.drone_id + "</b> — Prioridad " + m.priority + "<br>";
+    html += "<span style='font-size:0.68rem;color:#8a9bbd'>" +
+      m.route_summary.total_waypoints + " waypoints · " +
+      m.route_summary.total_distance_km + "km · " +
+      m.route_summary.total_mission_time_min + " min · " +
+      m.route_summary.total_frp_covered_mw + "MW</span><br>";
+
+    // Mostrar top 3 waypoints del dron
+    m.waypoints.slice(0, 3).forEach(function(w) {
+      var wIcon = w.severity === "CRÍTICO" ? "🔴" : w.severity === "ALTO" ? "🟠" : "🟡";
+      html += "<span style='font-size:0.65rem;color:#5c7a9e'>" +
+        wIcon + " #" + w.order + " " + w.category + " — " + w.total_frp_mw + "MW · " +
+        w.area_km2 + "km² · alt:" + w.suggested_altitude_m + "m · " + w.camera_mode +
+        "</span><br>";
+    });
+    if (m.waypoints.length > 3) {
+      html += "<span style='font-size:0.62rem;color:#3a5270'>+" + (m.waypoints.length - 3) + " waypoints más...</span><br>";
+    }
+    html += "</div>";
+  });
+
+  html += "<span style='font-size:0.6rem;color:#3a5270;margin-top:4px;display:block;font-style:italic'>" + dp.methodology + "</span>";
+  return html;
 }
 
 document.getElementById("close-detail").addEventListener("click", function() {
