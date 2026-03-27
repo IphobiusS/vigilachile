@@ -1066,6 +1066,8 @@ async function loadAI() {
 var cachedQuakesData = [];
 var cachedFiresData = [];
 var cachedFiresSummary = null;
+var cachedFireClusters = null;
+var clusterLayer = L.layerGroup();
 var cachedWeatherAll = [];
 
 function updateLastEvent() {
@@ -1399,6 +1401,60 @@ async function loadFires() {
       circle.on("mouseout", hideTooltip);
     });
   } catch(err) { document.getElementById("fire-count").textContent = "Error"; }
+}
+
+async function loadFireClusters() {
+  clusterLayer.clearLayers();
+  try {
+    var res = await fetch(API + "/fires/clusters");
+    var json = await res.json();
+    cachedFireClusters = json;
+    if (!json.clusters || !json.clusters.length) return;
+    json.clusters.forEach(function(c) {
+      var color = c.severity === "CRÍTICO" ? "#ff0000" : c.severity === "ALTO" ? "#ff3333" : c.severity === "MODERADO" ? "#ff9500" : "#ffd700";
+      // Círculo de área del frente de incendio
+      var radiusM = Math.max(500, c.radius_km * 1000);
+      var circle = L.circle([c.centroid_lat, c.centroid_lon], {
+        radius: radiusM,
+        color: color,
+        weight: 2,
+        opacity: 0.8,
+        fillColor: color,
+        fillOpacity: 0.15,
+        dashArray: "6 4"
+      }).addTo(clusterLayer);
+      circle.bindTooltip(
+        "<b>🔥 Frente de incendio #" + c.id + "</b><br>" +
+        "Focos: <b>" + c.fire_count + "</b> · FRP total: <b>" + c.total_frp_mw + " MW</b><br>" +
+        "Área: " + c.area_km2 + " km² · Radio: " + c.radius_km + " km<br>" +
+        "Severidad: <span style='color:" + color + ";font-weight:700'>" + c.severity + "</span> (" + c.category.replace("_", " ") + ")",
+        { sticky: true }
+      );
+      circle.on("click", function() {
+        var fires_detail = c.fires.slice(0, 5).map(function(f) {
+          return "  · FRP " + f.frp + "MW — (" + f.lat.toFixed(3) + ", " + f.lon.toFixed(3) + ")";
+        }).join("<br>");
+        L.popup({ maxWidth: 360, className: "detail-popup" })
+          .setLatLng([c.centroid_lat, c.centroid_lon])
+          .setContent(
+            "<div style='font-size:0.85rem;line-height:1.7'>" +
+            "<b style='font-size:1.1rem;color:" + color + "'>🔥 Frente de Incendio #" + c.id + "</b><br>" +
+            "<b>📊 Focos detectados:</b> " + c.fire_count + "<br>" +
+            "<b>⚡ FRP total:</b> " + c.total_frp_mw + " MW<br>" +
+            "<b>⚡ FRP máximo:</b> " + c.max_frp_mw + " MW<br>" +
+            "<b>📐 Área estimada:</b> " + c.area_km2 + " km²<br>" +
+            "<b>📏 Radio:</b> " + c.radius_km + " km<br>" +
+            "<b>🚨 Severidad:</b> <span style='color:" + color + "'>" + c.severity + "</span><br>" +
+            "<b>📡 Satélite:</b> " + c.satellite + " (VIIRS 375m)<br>" +
+            "<b>🔬 Algoritmo:</b> DBSCAN ε=1.5km<br>" +
+            "<hr style='border-color:#1e2d4a;margin:6px 0'>" +
+            "<b>Top focos:</b><br><span style='font-size:0.75rem'>" + fires_detail + "</span>" +
+            "</div>"
+          ).openOn(map);
+      });
+    });
+    clusterLayer.addTo(map);
+  } catch(e) { console.error("Error fire clusters:", e); }
 }
 
 async function loadQuakes() {
@@ -1901,6 +1957,7 @@ async function refresh() {
     loadTsunami(),
     loadRegions()
   ]);
+  loadFireClusters();
   loadAI();
   loadWeatherSummary();
   checkEmailAlerts();

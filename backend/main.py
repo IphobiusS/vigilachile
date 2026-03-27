@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from fires import get_fires
+from fires import get_fires, cluster_fires
 from quakes import get_quakes
 from risk import calculate_risk
 from analyzer import analyze_seismic_pattern, estimate_population
@@ -164,6 +164,16 @@ def quakes():
 @app.get("/fires")
 def fires():
     return cached_fires()
+
+@app.get("/fires/clusters")
+def fire_clusters():
+    """
+    Detección de frentes de incendio mediante clustering geoespacial DBSCAN.
+    Agrupa focos VIIRS cercanos (<1.5km) en incendios individuales.
+    Calcula: centroide, FRP total, área estimada, severidad.
+    """
+    f = cached_fires()
+    return cluster_fires(f.get("data", []))
 
 @app.get("/risk")
 def risk():

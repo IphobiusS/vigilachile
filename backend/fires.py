@@ -5,6 +5,8 @@ Fuente secundaria: MODIS C6.1 CSV (1km resolucion, fallback)
 
 VIIRS provee datos satelitales de mayor resolucion (375m vs 1km MODIS)
 con deteccion near real-time del satelite NOAA-20.
+
+Incluye clustering geoespacial para detectar frentes de incendio activos.
 """
 
 import requests
@@ -12,6 +14,7 @@ import csv
 import io
 import os
 import logging
+import math
 from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
@@ -226,3 +229,173 @@ def _get_fires_modis_csv():
     except Exception as e:
         logger.error("MODIS CSV error: %s", str(e))
         return {"count": 0, "data": [], "source": "error", "error": str(e)}
+
+
+# =====================================================================
+# CLUSTERING GEOESPACIAL — Detección de frentes de incendio
+# =====================================================================
+# Algoritmo: DBSCAN simplificado (density-based spatial clustering)
+# Agrupa focos VIIRS que estén a menos de `eps_km` kilómetros entre sí.
+# Cada cluster representa un frente de incendio activo con:
+# - Centroide (lat/lon), área estimada, FRP total, cantidad de focos
+# - Clasificación: mega-incendio, incendio mayor, incendio moderado, foco menor
+# =====================================================================
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    """Distancia entre dos puntos en km usando fórmula de Haversine."""
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def cluster_fires(fires, eps_km=1.5, min_points=2):
+    """
+    Clustering geoespacial de focos de calor para detectar frentes de incendio.
+    
+    Algoritmo: DBSCAN simplificado (sin librería externa).
+    - eps_km: radio máximo para considerar dos focos como parte del mismo incendio (default 1.5km)
+    - min_points: mínimo de focos para formar un cluster (default 2)
+    
+    Un foco VIIRS a 375m de resolución cubre ~0.14 km². Focos a <1.5km probablemente
+    son parte del mismo evento de fuego.
+    
+    Returns:
+        dict con clusters (frentes de incendio) y isolated (focos aislados)
+    """
+    if not fires:
+        return {"clusters": [], "isolated": [], "total_clusters": 0, "total_isolated": 0}
+
+    n = len(fires)
+    labels = [-1] * n  # -1 = sin asignar
+    cluster_id = 0
+
+    for i in range(n):
+        if labels[i] != -1:
+            continue
+        
+        # Buscar vecinos del punto i
+        neighbors = []
+        for j in range(n):
+            if i == j:
+                continue
+            dist = _haversine_km(fires[i]["lat"], fires[i]["lon"], fires[j]["lat"], fires[j]["lon"])
+            if dist <= eps_km:
+                neighbors.append(j)
+        
+        if len(neighbors) < min_points - 1:
+            # Punto aislado (no forma cluster)
+            continue
+        
+        # Crear nuevo cluster
+        labels[i] = cluster_id
+        seed_set = list(neighbors)
+        
+        # Expandir cluster (BFS)
+        k = 0
+        while k < len(seed_set):
+            j = seed_set[k]
+            if labels[j] == -1 or labels[j] == -2:
+                labels[j] = cluster_id
+                # Buscar vecinos de j
+                j_neighbors = []
+                for m in range(n):
+                    if m == j:
+                        continue
+                    if _haversine_km(fires[j]["lat"], fires[j]["lon"], fires[m]["lat"], fires[m]["lon"]) <= eps_km:
+                        j_neighbors.append(m)
+                if len(j_neighbors) >= min_points - 1:
+                    for nn in j_neighbors:
+                        if nn not in seed_set:
+                            seed_set.append(nn)
+            k += 1
+        
+        cluster_id += 1
+
+    # Construir resultado
+    clusters = {}
+    isolated = []
+    
+    for i, label in enumerate(labels):
+        if label == -1:
+            isolated.append(fires[i])
+        else:
+            if label not in clusters:
+                clusters[label] = []
+            clusters[label].append(fires[i])
+
+    # Calcular estadísticas por cluster
+    cluster_list = []
+    for cid, points in clusters.items():
+        lats = [p["lat"] for p in points]
+        lons = [p["lon"] for p in points]
+        frps = [p.get("frp", 0) for p in points]
+        
+        centroid_lat = sum(lats) / len(lats)
+        centroid_lon = sum(lons) / len(lons)
+        total_frp = round(sum(frps), 1)
+        max_frp = round(max(frps), 1)
+        
+        # Área estimada: bounding box en km²
+        lat_range = max(lats) - min(lats)
+        lon_range = max(lons) - min(lons)
+        # 1 grado lat ≈ 111km, 1 grado lon ≈ 111km * cos(lat)
+        height_km = lat_range * 111.0
+        width_km = lon_range * 111.0 * math.cos(math.radians(centroid_lat))
+        area_km2 = round(max(height_km * width_km, 0.14), 2)  # mínimo 1 pixel VIIRS
+        
+        # Calcular radio máximo desde centroide
+        max_radius = 0
+        for p in points:
+            d = _haversine_km(centroid_lat, centroid_lon, p["lat"], p["lon"])
+            if d > max_radius:
+                max_radius = d
+        
+        # Clasificación del incendio
+        if total_frp >= 500 or len(points) >= 50:
+            category = "mega_incendio"
+            severity = "CRÍTICO"
+        elif total_frp >= 100 or len(points) >= 20:
+            category = "incendio_mayor"
+            severity = "ALTO"
+        elif total_frp >= 30 or len(points) >= 5:
+            category = "incendio_activo"
+            severity = "MODERADO"
+        else:
+            category = "foco_menor"
+            severity = "BAJO"
+        
+        cluster_list.append({
+            "id": cid,
+            "centroid_lat": round(centroid_lat, 4),
+            "centroid_lon": round(centroid_lon, 4),
+            "fire_count": len(points),
+            "total_frp_mw": total_frp,
+            "max_frp_mw": max_frp,
+            "area_km2": area_km2,
+            "radius_km": round(max_radius, 2),
+            "category": category,
+            "severity": severity,
+            "satellite": points[0].get("satellite", "NOAA-20"),
+            "fires": points  # focos individuales del cluster
+        })
+    
+    # Ordenar por FRP total descendente
+    cluster_list.sort(key=lambda c: c["total_frp_mw"], reverse=True)
+
+    # Re-numerar IDs
+    for i, c in enumerate(cluster_list):
+        c["id"] = i + 1
+
+    logger.info("Fire clustering: %d clusters, %d isolated from %d fires", len(cluster_list), len(isolated), n)
+
+    return {
+        "clusters": cluster_list,
+        "isolated": isolated,
+        "total_clusters": len(cluster_list),
+        "total_isolated": len(isolated),
+        "algorithm": "DBSCAN",
+        "params": {"eps_km": eps_km, "min_points": min_points},
+        "top_incident": cluster_list[0] if cluster_list else None
+    }
