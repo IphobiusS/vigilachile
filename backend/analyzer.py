@@ -13,7 +13,7 @@ except ImportError:
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
-def analyze_seismic_pattern(quakes, fires, risk, volcanoes=None, tsunami=None, weather_summary=None):
+def analyze_seismic_pattern(quakes, fires, risk, volcanoes=None, tsunami=None, weather_summary=None, fire_clusters=None):
     if not quakes:
         return {
             "report": "Sin datos sísmicos disponibles en este momento.",
@@ -133,11 +133,31 @@ def analyze_seismic_pattern(quakes, fires, risk, volcanoes=None, tsunami=None, w
     max_frp = max((f.get("frp", 0) for f in fires), default=0) if fires else 0
     fire_satellite = fires[0].get("satellite", "MODIS") if fires else "sin datos"
 
+    # Fire cluster analysis
+    cluster_section = ""
+    if fire_clusters and fire_clusters.get("total_clusters", 0) > 0:
+        mega = [c for c in fire_clusters["clusters"] if c["category"] == "mega_incendio"]
+        major = [c for c in fire_clusters["clusters"] if c["category"] == "incendio_mayor"]
+        cluster_section = (
+            "- CLUSTERING DBSCAN: " + str(fire_clusters["total_clusters"]) + " frentes de incendio detectados\n"
+            "- Mega-incendios (FRP>500MW): " + str(len(mega)) + "\n"
+            "- Incendios mayores (FRP>100MW): " + str(len(major)) + "\n"
+        )
+        if fire_clusters.get("top_incident"):
+            top = fire_clusters["top_incident"]
+            cluster_section += (
+                "- INCIDENTE PRINCIPAL: " + str(top["fire_count"]) + " focos, "
+                + str(top["total_frp_mw"]) + "MW total, "
+                + str(top["area_km2"]) + "km2, "
+                + "severidad " + top["severity"] + "\n"
+            )
+
     prompt += (
-        "INCENDIOS: " + str(len(fires)) + " focos detectados por satélite " + fire_satellite + "\n"
+        "INCENDIOS: " + str(len(fires)) + " focos detectados por satelite " + fire_satellite + "\n"
         "- Alta intensidad (FRP>=20MW): " + str(len(high_frp_fires)) + " focos\n"
         "- Media intensidad (5-20MW): " + str(len(med_frp_fires)) + " focos\n"
-        "- FRP máximo: " + str(round(max_frp, 1)) + " MW\n"
+        "- FRP maximo: " + str(round(max_frp, 1)) + " MW\n"
+        + cluster_section
         + volc_section + tsun_section + clima_section +
         "RIESGO COMPUESTO: " + str(risk["score"]) + "/10 (" + risk["level"] + ")\n\n"
         "Genera un informe DETALLADO y ESPECÍFICO. Menciona datos concretos: cuántos sismos recientes, "

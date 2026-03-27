@@ -7,7 +7,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from datetime import datetime, timezone
 import io
 
-def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami=None, weather=None, regions=None):
+def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami=None, weather=None, regions=None, fire_clusters=None):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
     styles = getSampleStyleSheet()
@@ -195,7 +195,31 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
         elements.append(make_table(rd, [4*cm, 3*cm, 2.5*cm, 2.5*cm, 3*cm], orange_c))
         elements.append(Spacer(1, 10))
 
-    # INCENDIOS
+    # FRENTES DE INCENDIO (Clustering DBSCAN)
+    if fire_clusters and fire_clusters.get("total_clusters", 0) > 0:
+        elements.append(Paragraph("Frentes de Incendio — Clustering Geoespacial DBSCAN", sec_s))
+        elements.append(HRFlowable(width="100%", thickness=0.5, color=fire_c))
+        elements.append(Spacer(1, 6))
+        elements.append(Paragraph(
+            str(fire_clusters["total_clusters"]) + " frentes detectados, " +
+            str(fire_clusters["total_isolated"]) + " focos aislados. " +
+            "Algoritmo DBSCAN con radio " + str(fire_clusters["params"]["eps_km"]) + " km.",
+            body_s
+        ))
+        elements.append(Spacer(1, 4))
+        cd = [["#", "Focos", "FRP Total", "Area", "Severidad"]]
+        for c in fire_clusters["clusters"][:15]:
+            cd.append([
+                str(c["id"]),
+                str(c["fire_count"]),
+                str(c["total_frp_mw"]) + " MW",
+                str(c["area_km2"]) + " km2",
+                c["severity"] + " (" + c["category"].replace("_", " ") + ")"
+            ])
+        elements.append(make_table(cd, [1.5*cm, 2*cm, 3*cm, 3*cm, 5.5*cm], fire_c))
+        elements.append(Spacer(1, 10))
+
+    # INCENDIOS (focos individuales)
     if fires:
         elements.append(Paragraph("Focos de Calor — NASA FIRMS (VIIRS NOAA-20 · 375m)", sec_s))
         elements.append(HRFlowable(width="100%", thickness=0.5, color=fire_c))

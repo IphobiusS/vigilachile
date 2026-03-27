@@ -191,10 +191,11 @@ def analyze():
     f = cached_fires()
     r = calculate_risk(q["data"], f["data"])
     # Gather all threat data in parallel
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         fut_v = executor.submit(get_volcanoes)
         fut_t = executor.submit(get_tsunami_alerts)
         fut_ws = executor.submit(lambda: get_weather_summary())
+        fut_cl = executor.submit(cluster_fires, f.get("data", []))
         v = fut_v.result()
         t = fut_t.result()
         try:
@@ -202,7 +203,12 @@ def analyze():
         except Exception as e:
             logger.warning("Weather summary failed: %s", e)
             ws = None
-    return analyze_seismic_pattern(q["data"], f["data"], r, volcanoes=v, tsunami=t, weather_summary=ws)
+        try:
+            cl = fut_cl.result()
+        except Exception as e:
+            logger.warning("Fire clustering failed: %s", e)
+            cl = None
+    return analyze_seismic_pattern(q["data"], f["data"], r, volcanoes=v, tsunami=t, weather_summary=ws, fire_clusters=cl)
 
 @app.get("/population/{lat}/{lon}/{magnitude}")
 def population(lat: float, lon: float, magnitude: float):
@@ -392,7 +398,8 @@ def report_pdf():
         )
 
     pdf_bytes = generate_pdf(quakes_data, fires_data, r, ai, t,
-                             volcanoes=v, tsunami=ts, weather=w, regions=reg)
+                             volcanoes=v, tsunami=ts, weather=w, regions=reg,
+                             fire_clusters=cluster_fires(fires_data))
     _metrics["pdf_generated"] += 1
     now_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
     return Response(
