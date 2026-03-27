@@ -75,12 +75,14 @@ def get_fires():
     Obtiene focos de calor activos en Chile.
     1) VIIRS NOAA-20 NRT via FIRMS API (375m, near real-time) — requiere MAP_KEY
     2) Fallback: MODIS C6.1 CSV Sudamerica (1km, bulk download)
+    Si VIIRS devuelve 0 focos (gap orbital, rate limit), intenta MODIS.
     """
     if FIRMS_MAP_KEY:
         result = _get_fires_viirs()
-        if result and result["count"] >= 0:
+        if result and result["count"] > 0:
             return result
-        logger.warning("VIIRS failed, falling back to MODIS CSV")
+        logger.warning("VIIRS returned %s fires, trying MODIS fallback",
+                       result["count"] if result else "None")
 
     return _get_fires_modis_csv()
 
@@ -92,7 +94,7 @@ def _get_fires_viirs():
     Latencia: datos disponibles ~3h despues del paso del satelite
     Formato: CSV con lat, lon, bright_ti4, confidence, acq_date, acq_time, satellite
     """
-    url = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/" + FIRMS_MAP_KEY + "/VIIRS_NOAA20_NRT/" + CHILE_BBOX + "/1"
+    url = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/" + FIRMS_MAP_KEY + "/VIIRS_NOAA20_NRT/" + CHILE_BBOX + "/2"
     try:
         response = requests.get(url, timeout=20)
         if response.status_code == 401:
@@ -254,63 +256,80 @@ def cluster_fires(fires, eps_km=1.5, min_points=2):
     """
     Clustering geoespacial de focos de calor para detectar frentes de incendio.
     
-    Algoritmo: DBSCAN simplificado (sin librería externa).
+    Algoritmo: DBSCAN optimizado con grid espacial (sin librería externa).
     - eps_km: radio máximo para considerar dos focos como parte del mismo incendio (default 1.5km)
     - min_points: mínimo de focos para formar un cluster (default 2)
     
-    Un foco VIIRS a 375m de resolución cubre ~0.14 km². Focos a <1.5km probablemente
-    son parte del mismo evento de fuego.
-    
-    Returns:
-        dict con clusters (frentes de incendio) y isolated (focos aislados)
+    Optimización: pre-filtro por celda de grilla (~0.015° ≈ 1.67km) para evitar 
+    cálculos de haversine entre focos distantes. Reduce de O(n²) a O(n·k) donde k
+    es el número promedio de vecinos por celda.
     """
     if not fires:
         return {"clusters": [], "isolated": [], "total_clusters": 0, "total_isolated": 0}
 
     n = len(fires)
+
+    # Grid espacial: ~0.015° ≈ 1.67km, suficiente para eps_km=1.5
+    cell_size = 0.015
+    grid = {}
+    for i, f in enumerate(fires):
+        cx = int(f["lat"] / cell_size)
+        cy = int(f["lon"] / cell_size)
+        key = (cx, cy)
+        if key not in grid:
+            grid[key] = []
+        grid[key].append(i)
+
+    def get_neighbors(idx):
+        """Busca vecinos usando grid espacial — solo revisa celdas adyacentes."""
+        f = fires[idx]
+        cx = int(f["lat"] / cell_size)
+        cy = int(f["lon"] / cell_size)
+        neighbors = []
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                key = (cx + dx, cy + dy)
+                if key not in grid:
+                    continue
+                for j in grid[key]:
+                    if j == idx:
+                        continue
+                    if _haversine_km(f["lat"], f["lon"], fires[j]["lat"], fires[j]["lon"]) <= eps_km:
+                        neighbors.append(j)
+        return neighbors
+
     labels = [-1] * n  # -1 = sin asignar
     cluster_id = 0
 
     for i in range(n):
         if labels[i] != -1:
             continue
-        
-        # Buscar vecinos del punto i
-        neighbors = []
-        for j in range(n):
-            if i == j:
-                continue
-            dist = _haversine_km(fires[i]["lat"], fires[i]["lon"], fires[j]["lat"], fires[j]["lon"])
-            if dist <= eps_km:
-                neighbors.append(j)
-        
+
+        neighbors = get_neighbors(i)
+
         if len(neighbors) < min_points - 1:
-            # Punto aislado (no forma cluster)
             continue
-        
+
         # Crear nuevo cluster
         labels[i] = cluster_id
         seed_set = list(neighbors)
-        
+        seen = set(neighbors)
+        seen.add(i)
+
         # Expandir cluster (BFS)
         k = 0
         while k < len(seed_set):
             j = seed_set[k]
-            if labels[j] == -1 or labels[j] == -2:
+            if labels[j] == -1:
                 labels[j] = cluster_id
-                # Buscar vecinos de j
-                j_neighbors = []
-                for m in range(n):
-                    if m == j:
-                        continue
-                    if _haversine_km(fires[j]["lat"], fires[j]["lon"], fires[m]["lat"], fires[m]["lon"]) <= eps_km:
-                        j_neighbors.append(m)
+                j_neighbors = get_neighbors(j)
                 if len(j_neighbors) >= min_points - 1:
                     for nn in j_neighbors:
-                        if nn not in seed_set:
+                        if nn not in seen:
+                            seen.add(nn)
                             seed_set.append(nn)
             k += 1
-        
+
         cluster_id += 1
 
     # Construir resultado
@@ -378,7 +397,7 @@ def cluster_fires(fires, eps_km=1.5, min_points=2):
             "category": category,
             "severity": severity,
             "satellite": points[0].get("satellite", "NOAA-20"),
-            "fires": points  # focos individuales del cluster
+            "top_fires": sorted(points, key=lambda p: p.get("frp", 0), reverse=True)[:5]
         })
     
     # Ordenar por FRP total descendente
@@ -392,7 +411,6 @@ def cluster_fires(fires, eps_km=1.5, min_points=2):
 
     return {
         "clusters": cluster_list,
-        "isolated": isolated,
         "total_clusters": len(cluster_list),
         "total_isolated": len(isolated),
         "algorithm": "DBSCAN",

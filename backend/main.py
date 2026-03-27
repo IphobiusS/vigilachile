@@ -161,10 +161,6 @@ def cache_clear():
 def quakes():
     return cached_quakes()
 
-@app.get("/fires")
-def fires():
-    return cached_fires()
-
 @app.get("/fires/clusters")
 def fire_clusters():
     """
@@ -173,7 +169,14 @@ def fire_clusters():
     Calcula: centroide, FRP total, área estimada, severidad.
     """
     f = cached_fires()
-    return cluster_fires(f.get("data", []))
+    fire_data = f.get("data", []) if isinstance(f, dict) else []
+    logger.info("Fire clusters: input %d fires", len(fire_data))
+    result = cluster_fires(fire_data)
+    return result
+
+@app.get("/fires")
+def fires():
+    return cached_fires()
 
 @app.get("/risk")
 def risk():

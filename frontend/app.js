@@ -1431,7 +1431,7 @@ async function loadFireClusters() {
         { sticky: true }
       );
       circle.on("click", function() {
-        var fires_detail = c.fires.slice(0, 5).map(function(f) {
+        var fires_detail = (c.top_fires || []).slice(0, 5).map(function(f) {
           return "  · FRP " + f.frp + "MW — (" + f.lat.toFixed(3) + ", " + f.lon.toFixed(3) + ")";
         }).join("<br>");
         L.popup({ maxWidth: 360, className: "detail-popup" })
