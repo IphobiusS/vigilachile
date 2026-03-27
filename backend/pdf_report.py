@@ -132,16 +132,19 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     elements.append(HRFlowable(width="100%", thickness=0.5, color=yellow_c))
     elements.append(Spacer(1, 6))
     if volc_data:
-        vd = [["Volcan", "Region", "Alerta", "Elev.", "Observacion"]]
+        vd = [["Volcan", "Region", "Alerta", "Riesgo", "Elev.", "Observacion"]]
         for v in volc_data:
+            rank = v.get("risk_rank")
+            rank_str = "#" + str(rank) if rank else "--"
             vd.append([
                 v.get("name", "--"),
                 v.get("region", "--"),
                 v.get("alert", "--"),
+                rank_str,
                 str(v.get("elevation", "--")) + " m",
                 Paragraph(v.get("description", "--"), cell_s_left)
             ])
-        elements.append(make_table(vd, [2.5*cm, 2.5*cm, 1.8*cm, 1.5*cm, 6.7*cm], yellow_c))
+        elements.append(make_table(vd, [2.5*cm, 2.2*cm, 1.5*cm, 1.3*cm, 1.5*cm, 6*cm], yellow_c))
     else:
         elements.append(Paragraph("Sin datos de volcanes.", body_s))
     elements.append(Spacer(1, 10))

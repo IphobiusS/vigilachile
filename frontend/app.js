@@ -1060,6 +1060,7 @@ async function loadAI() {
 // ===== QUICK DETAIL PANELS + LAST EVENT =====
 var cachedQuakesData = [];
 var cachedFiresData = [];
+var cachedFiresSummary = null;
 var cachedWeatherAll = [];
 
 function updateLastEvent() {
@@ -1156,12 +1157,23 @@ function updateLastEvent() {
     var f = cachedFiresData || [];
     if (!f.length) { detailBody.innerHTML = "<div style='padding:16px;color:#5c7a9e'>Sin focos.</div>"; return; }
     var html = "";
-    var sorted = f.slice().sort(function(a,b) { return new Date(b.date) - new Date(a.date); });
+    // Show summary if available
+    if (cachedFiresSummary) {
+      var s = cachedFiresSummary;
+      html += "<div style='padding:8px 10px;font-size:0.68rem;color:#5c7a9e;border-bottom:1px solid #1e2d4a33;margin-bottom:4px'>" +
+        "🔴 <b style='color:#ff3333'>" + s.high_intensity + "</b> intensos · " +
+        "🟡 <b style='color:#ffd700'>" + s.medium_intensity + "</b> moderados · " +
+        "🟢 <b style='color:#4ade80'>" + s.low_intensity + "</b> menores" +
+        (s.max_frp_mw ? " · Máx: <b>" + s.max_frp_mw + " MW</b>" : "") +
+        "</div>";
+    }
+    var sorted = f.slice().sort(function(a,b) { return (b.frp||0) - (a.frp||0); });
     sorted.forEach(function(fire, i) {
+      var frpColor = (fire.frp||0) >= 20 ? "#ff3333" : (fire.frp||0) >= 5 ? "#ffd700" : "#ff6b35";
       html += "<div class='qd-item' data-qd-fire='" + i + "'>" +
-        "<span class='qd-mag' style='color:#ff6b35'>" + fire.brightness + "K</span>" +
+        "<span class='qd-mag' style='color:" + frpColor + "'>" + (fire.frp ? fire.frp + "MW" : fire.brightness + "K") + "</span>" +
         "<span class='qd-place'>Lat " + fire.lat.toFixed(2) + " · Lon " + fire.lon.toFixed(2) + "</span>" +
-        "<span class='qd-meta'>Conf: " + fire.confidence + "%</span></div>";
+        "<span class='qd-meta'>" + (fire.satellite || "MODIS") + " · " + fire.confidence + "%</span></div>";
     });
     detailBody.innerHTML = html;
     detailBody.querySelectorAll("[data-qd-fire]").forEach(function(el) {
@@ -1174,10 +1186,11 @@ function updateLastEvent() {
             "<div style='font-size:0.85rem;line-height:1.7'>" +
             "<b style='font-size:1.1rem;color:#ff6b35'>🔥 Foco de Calor</b><br>" +
             "<b>🌡️ Brillo:</b> " + fire.brightness + " K<br>" +
+            (fire.frp ? "<b>⚡ Potencia (FRP):</b> " + fire.frp + " MW" + (fire.frp >= 20 ? " 🔴" : fire.frp >= 5 ? " 🟡" : " 🟢") + "<br>" : "") +
             "<b>✅ Confianza:</b> " + fire.confidence + "%<br>" +
             "<b>📅 Fecha:</b> " + fire.date + "<br>" +
             "<b>📐 Coordenadas:</b> " + fire.lat.toFixed(4) + "°, " + fire.lon.toFixed(4) + "°<br>" +
-            "<b>📡 Fuente:</b> NASA FIRMS (MODIS)" +
+            "<b>📡 Fuente:</b> NASA FIRMS" + (fire.satellite ? " (" + fire.instrument + " " + fire.satellite + " · " + fire.resolution + ")" : " (MODIS)") +
             "</div>"
           ).openOn(map);
       });
@@ -1193,7 +1206,7 @@ function updateLastEvent() {
       html += "<div class='qd-item' data-qd-volc='" + i + "'>" +
         "<span class='qd-mag' style='color:" + vc + "'>" + vol.alert + "</span>" +
         "<span class='qd-place'><b>" + vol.name + "</b> · " + vol.region + "</span>" +
-        "<span class='qd-meta'>" + vol.elevation + "m</span></div>";
+        "<span class='qd-meta'>" + vol.elevation + "m" + (vol.risk_rank ? " · #" + vol.risk_rank : "") + "</span></div>";
     });
     detailBody.innerHTML = html;
     detailBody.querySelectorAll("[data-qd-volc]").forEach(function(el) {
@@ -1209,9 +1222,10 @@ function updateLastEvent() {
             "<b>⚠️ Alerta:</b> <span style='color:" + vc + "'>" + vol.alert + "</span><br>" +
             "<b>🗺️ Región:</b> " + vol.region + "<br>" +
             "<b>⛰️ Elevación:</b> " + vol.elevation + " m s.n.m.<br>" +
+            (vol.risk_rank ? "<b>📊 Ranking riesgo:</b> #" + vol.risk_rank + " de 87 volcanes activos<br>" : "") +
             "<b>📐 Coordenadas:</b> " + vol.lat.toFixed(3) + "°, " + vol.lon.toFixed(3) + "°<br>" +
             "<b>📋 Estado:</b> " + vol.description + "<br>" +
-            "<b>📡 Fuente:</b> SERNAGEOMIN" +
+            "<b>📡 Fuente:</b> SERNAGEOMIN — RNVV" +
             "</div>"
           ).openOn(map);
       });
@@ -1351,6 +1365,7 @@ async function loadFires() {
     const json = await res.json();
     document.getElementById("fire-count").textContent = json.count;
     cachedFiresData = json.data;
+    cachedFiresSummary = json.summary || null;
     try { document.getElementById("qp-fires-count").textContent = json.count; } catch(e) {}
     updateLastEvent();
     json.data.forEach(function(f) {
@@ -1417,12 +1432,12 @@ document.getElementById("toggle-heat").addEventListener("change", async function
 
 function startCountdown() {
   let seconds = 300;
-  const footerSources = document.getElementById("footer-sources");
+  const countdownEl = document.getElementById("footer-countdown");
   const interval = setInterval(function() {
     seconds--;
     const min = Math.floor(seconds / 60);
     const sec = seconds % 60;
-    if (footerSources) footerSources.textContent = "CSN · NASA FIRMS · Próxima actualización en " + min + ":" + String(sec).padStart(2, "0");
+    if (countdownEl) countdownEl.textContent = "Actualización en " + min + ":" + String(sec).padStart(2, "0");
     if (seconds <= 0) { clearInterval(interval); refresh(); }
   }, 1000);
 }

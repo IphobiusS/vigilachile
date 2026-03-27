@@ -33,6 +33,28 @@
   <meta name="twitter:title" content="VigilaChile — Monitoreo de Desastres"/>
   <meta name="twitter:description" content="Sismos, incendios, volcanes y tsunami de Chile en tiempo real. Datos satelitales + IA."/>
   <meta name="twitter:image" content="https://vigilachile.vercel.app/icon-512.png"/>
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "VigilaChile",
+    "description": "Plataforma de monitoreo multi-amenaza en tiempo real para Chile. Sismos, incendios forestales, volcanes, tsunami y clima.",
+    "url": "https://vigilachile.vercel.app",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "author": {
+      "@type": "Person",
+      "name": "Sebastián Latorre Muñoz",
+      "url": "https://linkedin.com/in/sebastian-latorre-munoz/"
+    },
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CLP" },
+    "browserRequirements": "Requires JavaScript",
+    "softwareVersion": "2.0.0",
+    "keywords": "sismos, terremotos, incendios forestales, volcanes, tsunami, Chile, monitoreo, VIIRS, NASA FIRMS, SERNAGEOMIN"
+  }
+  </script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>@keyframes spin{to{transform:rotate(360deg)}}@keyframes loadbar{0%{width:0;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0;margin-left:100%}}</style>
   <link rel="stylesheet" href="styles.css"/>
@@ -182,7 +204,7 @@
     </div>
 
     <div id="footer">
-      <div id="footer-sources">CSN · NASA FIRMS · SERNAGEOMIN · USGS · WeatherAPI</div>
+      <div id="footer-sources">CSN · NASA FIRMS (VIIRS NOAA-20) · SERNAGEOMIN · USGS · WeatherAPI · <span id="footer-countdown"></span></div>
       <div id="footer-credit"><a href="https://linkedin.com/m/in/sebastian-latorre-munoz/" target="_blank" rel="noopener">Desarrollado por Sebastián Latorre Muñoz</a></div>
     </div>
   </nav>
