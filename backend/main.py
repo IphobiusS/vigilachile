@@ -12,6 +12,7 @@ from regions import calculate_region_risk, get_vulnerability_index
 from alerts import send_quake_alert
 from weather import get_weather_data, get_weather_summary
 from communes import search_communes, COMMUNES
+from post_disaster import assess_post_disaster
 import requests
 import os
 import logging
@@ -225,6 +226,21 @@ def tsunami():
 @app.get("/aftershocks/{lat}/{lon}")
 def aftershocks(lat: float, lon: float):
     return get_aftershocks(lat, lon)
+
+@app.get("/post-disaster/{lat}/{lon}/{magnitude}")
+def post_disaster(lat: float, lon: float, magnitude: float, depth: float = 30.0):
+    """
+    Evaluación post-desastre automática.
+    Cruza datos sismicos, satelitales (VIIRS), volcánicos e infraestructura crítica
+    para generar un reporte de evaluación de daño sin exponer personal humano.
+    """
+    quake = {
+        "lat": lat, "lon": lon, "magnitude": magnitude,
+        "depth": depth, "place": f"{lat:.2f}, {lon:.2f}"
+    }
+    f = cached_fires()
+    v = get_volcanoes()
+    return assess_post_disaster(quake, fires=f.get("data", []), volcanoes=v)
 
 @app.get("/regions")
 def regions():
