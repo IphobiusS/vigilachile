@@ -13,6 +13,7 @@ from alerts import send_quake_alert
 from weather import get_weather_data, get_weather_summary
 from communes import search_communes, COMMUNES
 from post_disaster import assess_post_disaster
+from drone_planner import plan_drone_deployment
 import requests
 import os
 import logging
@@ -178,6 +179,23 @@ def fire_clusters():
 @app.get("/fires")
 def fires():
     return cached_fires()
+
+@app.get("/drone/plan")
+def drone_plan(drones: int = 3, range_km: int = 80, speed_kmh: int = 60):
+    """
+    Plan de despliegue de drones basado en frentes de incendio DBSCAN.
+    Genera waypoints priorizados, rutas optimizadas y tiempos estimados.
+    Parámetros configurables: cantidad de drones, autonomía y velocidad.
+    """
+    f = cached_fires()
+    fire_data = f.get("data", []) if isinstance(f, dict) else []
+    clusters = cluster_fires(fire_data)
+    return plan_drone_deployment(
+        clusters,
+        max_drones=min(drones, 10),
+        drone_range_km=min(range_km, 200),
+        drone_speed_kmh=max(speed_kmh, 20)
+    )
 
 @app.get("/risk")
 def risk():
