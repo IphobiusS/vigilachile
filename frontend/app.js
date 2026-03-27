@@ -998,27 +998,32 @@ function formatPostDisaster(d) {
   var alertColor = d.alert.level === "ROJA" ? "#ff3333" : d.alert.level === "NARANJA" ? "#ff9500" : d.alert.level === "AMARILLA" ? "#ffd700" : "#4ade80";
   var html = "<b>🛡️ Evaluación Post-Desastre</b><br>";
   html += "<span style='color:" + alertColor + ";font-weight:700'>⚠️ Alerta " + d.alert.level + "</span><br>";
-  html += "📐 Radio impacto: <b>" + d.impact_assessment.impact_radius_km + " km</b><br>";
-  html += "📊 Intensidad epicentro: <b>" + d.impact_assessment.epicenter_intensity.intensity + "</b> (" + d.impact_assessment.epicenter_intensity.level + ")<br>";
-  html += "🏘️ Población afectada: <b>~" + d.impact_assessment.estimated_population_affected.toLocaleString("es-CL") + "</b><br>";
+  html += "<span style='font-size:0.72rem;color:#8a9bbd'>" + d.alert.recommended_action + "</span><br>";
+  html += "<hr style='border-color:#1e2d4a44;margin:6px 0'>";
+  html += "📐 Radio de daño potencial: <b>" + d.impact_assessment.impact_radius_km + " km</b><br>";
+  html += "📊 Intensidad epicentro: <b>" + d.impact_assessment.epicenter_intensity.intensity + "</b> — " + d.impact_assessment.epicenter_intensity.damage + "<br>";
+  html += "🏘️ Población en zona: <b>~" + d.impact_assessment.estimated_population_affected.toLocaleString("es-CL") + "</b> (densidad " + d.impact_assessment.population_density.toLowerCase() + ")<br>";
   if (d.infrastructure_at_risk.count > 0) {
-    html += "🏥 Infraestructura en riesgo: <b>" + d.infrastructure_at_risk.count + " instalaciones</b><br>";
-    d.infrastructure_at_risk.facilities.slice(0, 3).forEach(function(f) {
-      html += "<span style='font-size:0.75rem;color:#5c7a9e'>  · " + f.name + " (" + f.distance_km + "km) — " + f.estimated_intensity + "</span><br>";
+    html += "<hr style='border-color:#1e2d4a44;margin:6px 0'>";
+    html += "🏥 <b>" + d.infrastructure_at_risk.count + " instalaciones críticas</b> en radio de " + d.impact_assessment.impact_radius_km + "km:<br>";
+    d.infrastructure_at_risk.facilities.slice(0, 4).forEach(function(f) {
+      var icon = f.type === "hospital" ? "🏥" : f.type === "aeropuerto" ? "✈️" : f.type === "represa" ? "🌊" : "🌉";
+      html += "<span style='font-size:0.72rem;color:#8a9bbd'>  " + icon + " " + f.name + " — " + f.distance_km + "km del epicentro</span><br>";
     });
   }
   if (d.fire_risk.active_fires_in_zone > 0) {
-    html += "🔥 Incendios en zona: <b>" + d.fire_risk.active_fires_in_zone + "</b> (" + d.fire_risk.high_intensity_fires + " intensos)<br>";
+    html += "🔥 <b>" + d.fire_risk.active_fires_in_zone + " focos de calor preexistentes</b> en zona (" + d.fire_risk.high_intensity_fires + " de alta intensidad)<br>";
   }
   if (d.volcanic_risk.nearby_volcanoes > 0) {
-    html += "🌋 Volcanes cercanos: <b>" + d.volcanic_risk.nearby_volcanoes + "</b><br>";
+    var volcNames = d.volcanic_risk.volcanoes.map(function(v) { return v.name + " (" + v.distance_km + "km)"; }).join(", ");
+    html += "🌋 Volcanes cercanos: " + volcNames + "<br>";
   }
   html += "<hr style='border-color:#1e2d4a44;margin:6px 0'>";
-  html += "<b>📋 Recomendaciones:</b><br>";
+  html += "<b>📋 Plan de acción:</b><br>";
   d.recommendations.forEach(function(r) {
-    html += "<span style='font-size:0.75rem'>▸ " + r + "</span><br>";
+    html += "<span style='font-size:0.72rem'>▸ " + r + "</span><br>";
   });
-  html += "<span style='font-size:0.65rem;color:#3a5270;margin-top:4px;display:block'>" + d.methodology + "</span>";
+  html += "<span style='font-size:0.6rem;color:#3a5270;margin-top:6px;display:block;font-style:italic'>" + d.methodology + "</span>";
   return html;
 }
 

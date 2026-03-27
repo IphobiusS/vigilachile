@@ -117,13 +117,16 @@ def assess_post_disaster(quake, fires=None, volcanoes=None):
     depth = quake.get("depth", 30)
     place = quake.get("place", "Chile")
 
-    # 1. Radio de afectación por magnitud
+    # 1. Radio de afectación significativa por magnitud
+    # Basado en datos reales de terremotos en Chile:
+    # 27F 2010 (M8.8): daño significativo ~150km del epicentro
+    # Illapel 2015 (M8.4): daño moderado ~100km
+    # Estos son radios de DAÑO POTENCIAL, no de percepción
     impact_radii = {
-        3.0: 10, 3.5: 20, 4.0: 40, 4.5: 70,
-        5.0: 120, 5.5: 180, 6.0: 280, 6.5: 400,
-        7.0: 550, 7.5: 700, 8.0: 900, 8.5: 1100
+        5.0: 15, 5.5: 25, 6.0: 40, 6.5: 60,
+        7.0: 90, 7.5: 130, 8.0: 180, 8.5: 250, 9.0: 350
     }
-    radius_km = 40
+    radius_km = 15
     for m, r in sorted(impact_radii.items()):
         if mag >= m:
             radius_km = r
@@ -131,7 +134,8 @@ def assess_post_disaster(quake, fires=None, volcanoes=None):
     # 2. Intensidad Mercalli en el epicentro
     epicenter_mmi = _estimate_mercalli(mag, depth, 0)
 
-    # 3. Estimación poblacional (densidad por zona)
+    # 3. Estimación poblacional en zona de daño potencial
+    # Densidad promedio por zona de Chile (hab/km²)
     if lat > -20:
         density = 5
     elif lat > -25:
@@ -150,7 +154,8 @@ def assess_post_disaster(quake, fires=None, volcanoes=None):
         density = 3
 
     area_km2 = math.pi * (radius_km ** 2)
-    population_affected = int(area_km2 * density * 0.3)
+    # Factor 0.15: no toda el area esta habitada uniformemente
+    population_affected = int(area_km2 * density * 0.15)
 
     # 4. Infraestructura crítica en zona de impacto
     affected_infra = []
@@ -219,19 +224,24 @@ def assess_post_disaster(quake, fires=None, volcanoes=None):
     if len(affected_infra) > 0:
         hospitals = [i for i in affected_infra if i["type"] == "hospital"]
         bridges = [i for i in affected_infra if i["type"] in ("puente", "represa")]
+        airports = [i for i in affected_infra if i["type"] == "aeropuerto"]
         if hospitals:
-            recommendations.append("Priorizar inspeccion de " + str(len(hospitals)) + " hospital(es) en zona de impacto")
+            recommendations.append("Verificar operatividad de " + str(len(hospitals)) + " hospital(es) en radio de " + str(radius_km) + "km")
         if bridges:
-            recommendations.append("Evaluar integridad estructural de " + str(len(bridges)) + " puente(s)/represa(s) critica(s)")
+            recommendations.append("Inspeccionar " + str(len(bridges)) + " puente(s)/represa(s) — priorizar las mas cercanas al epicentro")
+        if airports:
+            recommendations.append("Confirmar estado de " + str(len(airports)) + " aeropuerto(s) para operaciones de ayuda")
     if len(fires_in_zone) > 0:
         high_frp = [f for f in fires_in_zone if f["frp_mw"] >= 20]
-        recommendations.append("ALERTA: " + str(len(fires_in_zone)) + " foco(s) de incendio activos en zona (" + str(len(high_frp)) + " de alta intensidad). Riesgo de propagacion post-sismo")
+        recommendations.append("Focos de calor preexistentes en zona: " + str(len(fires_in_zone)) + " (" + str(len(high_frp)) + " de alta intensidad). Vigilar posible propagacion por dano en infraestructura de gas")
     if len(nearby_volcanoes) > 0:
         alert_volc = [v for v in nearby_volcanoes if v["alert"] != "Verde"]
         if alert_volc:
             recommendations.append("Monitorear " + str(len(alert_volc)) + " volcan(es) en alerta cercano(s): " + ", ".join([v["name"] for v in alert_volc]))
-    if mag >= 6.0 and depth < 50:
-        recommendations.append("Sismo superficial de alta magnitud: alto riesgo de dano estructural. Desplegar drones para evaluacion visual")
+    if mag >= 6.5 and depth < 50:
+        recommendations.append("Sismo superficial de alta magnitud: priorizar evaluacion visual con drones en zonas de dificil acceso")
+    elif mag >= 6.0:
+        recommendations.append("Evaluar dano estructural con drones en infraestructura critica cercana al epicentro")
     if not recommendations:
         recommendations.append("Sin acciones prioritarias. Mantener monitoreo de rutina")
 
@@ -255,11 +265,13 @@ def assess_post_disaster(quake, fires=None, volcanoes=None):
         },
         "infrastructure_at_risk": {
             "count": len(affected_infra),
+            "description": "Instalaciones criticas dentro de " + str(radius_km) + "km del epicentro",
             "facilities": affected_infra[:10]
         },
         "fire_risk": {
             "active_fires_in_zone": len(fires_in_zone),
             "high_intensity_fires": len([f for f in fires_in_zone if f["frp_mw"] >= 20]),
+            "description": "Focos de calor VIIRS preexistentes dentro del radio de impacto (no causados por el sismo)",
             "fires": fires_in_zone[:10]
         },
         "volcanic_risk": {
