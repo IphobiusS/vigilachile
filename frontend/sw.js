@@ -1,4 +1,4 @@
-const CACHE_NAME = "vigilachile-v9";
+const CACHE_NAME = "vigilachile-v10";
 const STATIC_ASSETS = [
   "/",
   "/index.html",

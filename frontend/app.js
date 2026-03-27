@@ -1372,6 +1372,10 @@ async function loadFires() {
     const json = await res.json();
     document.getElementById("fire-count").textContent = json.count;
     document.getElementById("fire-count").classList.remove("loading");
+    if (json.summary) {
+      var sub = document.getElementById("fire-sublabel");
+      if (sub) sub.textContent = json.summary.high_intensity + " intensos · máx " + json.summary.max_frp_mw + "MW";
+    }
     cachedFiresData = json.data;
     cachedFiresSummary = json.summary || null;
     try { document.getElementById("qp-fires-count").textContent = json.count; } catch(e) {}

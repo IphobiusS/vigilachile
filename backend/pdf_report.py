@@ -88,10 +88,14 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     tsun_data = (tsunami if isinstance(tsunami, list) else tsunami.get("data", [])) if tsunami else []
     tsun_count = len(tsun_data) if isinstance(tsun_data, list) else 0
 
+    high_frp = sum(1 for f in fires if f.get("frp", 0) >= 20)
+    max_fire_frp = max((f.get("frp", 0) for f in fires), default=0) if fires else 0
+    fire_detail = str(high_frp) + " intensos (FRP>=20MW), max " + str(round(max_fire_frp, 1)) + " MW" if fires else "Sin focos"
+
     summary = [
         ["Amenaza", "Estado", "Detalle"],
         ["Sismos (24h)", str(len(quakes)) + " eventos", "Mag. max: M" + str(max_mag)],
-        ["Incendios", str(len(fires)) + " focos activos", "Normal" if len(fires) < 5 else "Elevado"],
+        ["Incendios", str(len(fires)) + " focos VIIRS", fire_detail],
         ["Volcanes", str(len(volc_alerts)) + " en alerta", ", ".join([v["name"] for v in volc_alerts[:3]]) if volc_alerts else "Todos en verde"],
         ["Tsunami", "ALERTA ACTIVA" if tsun_count > 0 else "Sin alertas", "Monitoreo USGS"],
         ["Riesgo compuesto", str(risk.get("score", "--")) + "/10", risk.get("level", "--")],

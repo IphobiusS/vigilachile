@@ -23,8 +23,8 @@ def _make_quake(magnitude, hours_ago=1, lat=-33.5, lon=-70.5, place="Test"):
     }
 
 
-def _make_fire(lat=-33.5, lon=-70.5):
-    return {"lat": lat, "lon": lon, "brightness": 350, "date": "2026-03-26", "confidence": "80"}
+def _make_fire(lat=-33.5, lon=-70.5, frp=10.0):
+    return {"lat": lat, "lon": lon, "brightness": 350, "date": "2026-03-26", "confidence": "80", "frp": frp, "satellite": "NOAA-20", "instrument": "VIIRS", "resolution": "375m"}
 
 
 # =====================================================================
@@ -61,6 +61,14 @@ class TestRiskCalculation:
         fires = [_make_fire() for _ in range(5)]
         with_fires = calculate_risk(quakes, fires)
         assert with_fires["score"] >= no_fires["score"], "Fires should increase risk"
+
+    def test_frp_weighting(self):
+        """High FRP fires should contribute more to risk than low FRP fires"""
+        quakes = [_make_quake(3.0)]
+        low_frp = calculate_risk(quakes, [_make_fire(frp=1) for _ in range(10)])
+        high_frp = calculate_risk(quakes, [_make_fire(frp=50) for _ in range(3)])
+        assert high_frp["score"] >= low_frp["score"], \
+            f"3 fires FRP=50MW ({high_frp['score']}) should >= 10 fires FRP=1MW ({low_frp['score']})"
 
     def test_risk_has_required_fields(self):
         result = calculate_risk([_make_quake(4.0)], [])
