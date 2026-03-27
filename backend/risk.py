@@ -40,8 +40,12 @@ def calculate_risk(quakes, fires):
         elif mag >= 4.0: score += 2
         else:            score += 0.3
 
-    # Factor incendios — complementario
-    score += min(20, len(fires) * 3)
+    # Factor incendios — ponderado por intensidad (FRP)
+    high_frp = sum(1 for f in fires if f.get("frp", 0) >= 20)
+    med_frp = sum(1 for f in fires if 5 <= f.get("frp", 0) < 20)
+    low_frp = len(fires) - high_frp - med_frp
+    fire_score = high_frp * 4 + med_frp * 2 + low_frp * 0.5
+    score += min(20, fire_score)
 
     # Factor volumen general — muy suave para no inflar
     if len(quakes_24h) > 50: score += 3

@@ -193,13 +193,16 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
 
     # INCENDIOS
     if fires:
-        elements.append(Paragraph("Focos de Calor — NASA FIRMS", sec_s))
+        elements.append(Paragraph("Focos de Calor — NASA FIRMS (VIIRS NOAA-20 · 375m)", sec_s))
         elements.append(HRFlowable(width="100%", thickness=0.5, color=fire_c))
         elements.append(Spacer(1, 6))
-        fd = [["Latitud", "Longitud", "Brillo (K)", "Confianza", "Fecha"]]
-        for f in fires[:20]:
-            fd.append([str(round(f.get("lat", 0), 3)), str(round(f.get("lon", 0), 3)), str(f.get("brightness", "--")), str(f.get("confidence", "--")) + "%", str(f.get("date", "--"))])
-        elements.append(make_table(fd, [3*cm, 3*cm, 3*cm, 3*cm, 5*cm], fire_c))
+        fd = [["Lat.", "Lon.", "FRP (MW)", "Brillo (K)", "Satélite", "Fecha"]]
+        sorted_fires = sorted(fires, key=lambda x: x.get("frp", x.get("brightness", 0)), reverse=True)
+        for f in sorted_fires[:20]:
+            frp_val = f.get("frp", "")
+            frp_str = str(frp_val) + (" MW" if frp_val else "--")
+            fd.append([str(round(f.get("lat", 0), 3)), str(round(f.get("lon", 0), 3)), frp_str, str(f.get("brightness", "--")), str(f.get("satellite", "MODIS")), str(f.get("date", "--"))])
+        elements.append(make_table(fd, [2.2*cm, 2.2*cm, 2.5*cm, 2.5*cm, 3*cm, 2.6*cm], fire_c))
         elements.append(Spacer(1, 12))
 
     # FOOTER

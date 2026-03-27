@@ -124,8 +124,20 @@ def analyze_seismic_pattern(quakes, fires, risk, volcanoes=None, tsunami=None, w
         "- Magnitud máxima: M" + str(max_mag) + " · Promedio: M" + str(round(avg_mag, 1)) + "\n"
         "- Zonas más activas: " + zones_detail + "\n"
         "- 5 sismos más recientes:\n" + top5_detail
-        + ("- PATRON: Posible enjambre sísmico activo\n" if is_swarm else "") +
-        "INCENDIOS: " + str(len(fires)) + " focos activos\n"
+        + ("- PATRON: Posible enjambre sísmico activo\n" if is_swarm else "")
+    )
+
+    # Fire FRP analysis
+    high_frp_fires = [f for f in fires if f.get("frp", 0) >= 20]
+    med_frp_fires = [f for f in fires if 5 <= f.get("frp", 0) < 20]
+    max_frp = max((f.get("frp", 0) for f in fires), default=0) if fires else 0
+    fire_satellite = fires[0].get("satellite", "MODIS") if fires else "sin datos"
+
+    prompt += (
+        "INCENDIOS: " + str(len(fires)) + " focos detectados por satélite " + fire_satellite + "\n"
+        "- Alta intensidad (FRP>=20MW): " + str(len(high_frp_fires)) + " focos\n"
+        "- Media intensidad (5-20MW): " + str(len(med_frp_fires)) + " focos\n"
+        "- FRP máximo: " + str(round(max_frp, 1)) + " MW\n"
         + volc_section + tsun_section + clima_section +
         "RIESGO COMPUESTO: " + str(risk["score"]) + "/10 (" + risk["level"] + ")\n\n"
         "Genera un informe DETALLADO y ESPECÍFICO. Menciona datos concretos: cuántos sismos recientes, "

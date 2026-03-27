@@ -156,6 +156,14 @@ body.emergency-mode #sidebar {
   letter-spacing: -0.03em;
   line-height: 1.1;
 }
+.stat-number.loading {
+  color: var(--border);
+  animation: stat-pulse 1.5s ease-in-out infinite;
+}
+@keyframes stat-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
 .stat-label {
   font-size: 0.6rem;
   color: var(--text-muted);
@@ -1169,7 +1177,7 @@ body.emergency-mode #sidebar {
     gap: 4px;
   }
   #sidebar-actions button {
-    width: 30px; height: 30px; font-size: 0.85rem;
+    width: 36px; height: 36px; font-size: 0.9rem;
   }
 
   /* Events panel: full width, shorter */

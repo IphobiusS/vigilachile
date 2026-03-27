@@ -992,6 +992,7 @@ async function loadRisk() {
     const res = await fetch(API + "/risk");
     const data = await res.json();
     document.getElementById("risk-score").textContent = data.score + "/10";
+    document.getElementById("risk-score").classList.remove("loading");
     document.getElementById("risk-score").style.color = data.color;
     document.getElementById("risk-level").textContent = "Riesgo " + data.level;
     document.getElementById("risk-desc").textContent = data.description;
@@ -1327,8 +1328,10 @@ function renderQuakes(quakes) {
   if (evEl) evEl.innerHTML = "";
   const filtered = quakes.filter(function(q) { return q.magnitude >= minMag; });
   document.getElementById("quake-count").textContent = filtered.length;
+  document.getElementById("quake-count").classList.remove("loading");
   const maxMag = filtered.length > 0 ? Math.max.apply(null, filtered.map(function(q) { return q.magnitude; })) : null;
   document.getElementById("max-mag").textContent = maxMag ? maxMag.toFixed(1) : "--";
+  if (maxMag) document.getElementById("max-mag").classList.remove("loading");
   checkAlert(filtered);
 
   filtered.forEach(function(q) {
@@ -1368,6 +1371,7 @@ async function loadFires() {
     const res = await fetch(API + "/fires");
     const json = await res.json();
     document.getElementById("fire-count").textContent = json.count;
+    document.getElementById("fire-count").classList.remove("loading");
     cachedFiresData = json.data;
     cachedFiresSummary = json.summary || null;
     try { document.getElementById("qp-fires-count").textContent = json.count; } catch(e) {}
