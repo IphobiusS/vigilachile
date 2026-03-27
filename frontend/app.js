@@ -961,6 +961,7 @@ async function showDetail(q, marker) {
     popHtml +
     getShareButtons(q) +
     (prep ? "<div class='prep-tip'>💡 " + prep + "</div>" : "") +
+    (q.magnitude >= 6.0 ? "<div class='prep-tip' id='post-disaster-info'>🛡️ Cargando evaluación post-desastre...</div>" : "") +
     (q.magnitude >= 5.0 ? "<div class='prep-tip' id='replica-info'>📡 Cargando réplicas...</div>" : "") +
     (q.url ? "<a href='" + q.url + "' target='_blank'>Ver informe CSN →</a>" : "");
 
@@ -976,8 +977,73 @@ async function showDetail(q, marker) {
   detailPanel.classList.remove("hidden");
   map.setView([q.lat, q.lon], 8, { animate: true });
   setTimeout(function() { map.panBy([150, 0], { animate: true }); }, 400);
-  if (q.magnitude >= 4.5) speak("Sismo de magnitud " + q.magnitude + " en " + q.place + ". Profundidad " + q.depth + " kilómetros.");
+  if (q.magnitude >= 5.0) speak("Sismo de magnitud " + q.magnitude + " en " + q.place + ". Profundidad " + q.depth + " kilómetros.");
   if (q.magnitude >= 5.0) loadAftershocks(q);
+  if (q.magnitude >= 6.0) loadPostDisaster(q);
+}
+
+async function loadPostDisaster(q) {
+  var el = document.getElementById("post-disaster-info");
+  if (!el) return;
+  try {
+    var res = await fetch(API + "/post-disaster/" + q.lat + "/" + q.lon + "/" + q.magnitude + "?depth=" + (q.depth || 30));
+    var d = await res.json();
+    el.innerHTML = formatPostDisaster(d);
+  } catch(e) {
+    el.innerHTML = "🛡️ Evaluación no disponible";
+  }
+}
+
+function formatPostDisaster(d) {
+  var alertColor = d.alert.level === "ROJA" ? "#ff3333" : d.alert.level === "NARANJA" ? "#ff9500" : d.alert.level === "AMARILLA" ? "#ffd700" : "#4ade80";
+  var html = "<b>🛡️ Evaluación Post-Desastre</b><br>";
+  html += "<span style='color:" + alertColor + ";font-weight:700'>⚠️ Alerta " + d.alert.level + "</span><br>";
+  html += "📐 Radio impacto: <b>" + d.impact_assessment.impact_radius_km + " km</b><br>";
+  html += "📊 Intensidad epicentro: <b>" + d.impact_assessment.epicenter_intensity.intensity + "</b> (" + d.impact_assessment.epicenter_intensity.level + ")<br>";
+  html += "🏘️ Población afectada: <b>~" + d.impact_assessment.estimated_population_affected.toLocaleString("es-CL") + "</b><br>";
+  if (d.infrastructure_at_risk.count > 0) {
+    html += "🏥 Infraestructura en riesgo: <b>" + d.infrastructure_at_risk.count + " instalaciones</b><br>";
+    d.infrastructure_at_risk.facilities.slice(0, 3).forEach(function(f) {
+      html += "<span style='font-size:0.75rem;color:#5c7a9e'>  · " + f.name + " (" + f.distance_km + "km) — " + f.estimated_intensity + "</span><br>";
+    });
+  }
+  if (d.fire_risk.active_fires_in_zone > 0) {
+    html += "🔥 Incendios en zona: <b>" + d.fire_risk.active_fires_in_zone + "</b> (" + d.fire_risk.high_intensity_fires + " intensos)<br>";
+  }
+  if (d.volcanic_risk.nearby_volcanoes > 0) {
+    html += "🌋 Volcanes cercanos: <b>" + d.volcanic_risk.nearby_volcanoes + "</b><br>";
+  }
+  html += "<hr style='border-color:#1e2d4a44;margin:6px 0'>";
+  html += "<b>📋 Recomendaciones:</b><br>";
+  d.recommendations.forEach(function(r) {
+    html += "<span style='font-size:0.75rem'>▸ " + r + "</span><br>";
+  });
+  html += "<span style='font-size:0.65rem;color:#3a5270;margin-top:4px;display:block'>" + d.methodology + "</span>";
+  return html;
+}
+
+async function runPostDisasterSim() {
+  // Simulación: M7.5 en Concepción, profundidad 20km
+  var simLat = -36.82, simLon = -73.05, simMag = 7.5, simDepth = 20;
+  map.flyTo([simLat, simLon], 7, { animate: true });
+
+  detailContent.innerHTML =
+    "<h2 style='color:#ff6b35'>⚡ SIMULACIÓN POST-DESASTRE</h2>" +
+    "<div style='background:#ff6b3515;border:1px solid #ff6b3544;border-radius:6px;padding:8px;margin:8px 0;font-size:0.7rem;color:#ff9500'>" +
+    "⚠️ Esto es una <b>simulación</b> — no es un evento real.<br>Demuestra la capacidad de evaluación post-desastre de VigilaChile.</div>" +
+    "<p>📍 Concepción, Biobío</p>" +
+    "<p>💪 Magnitud: <span style='color:#ff3333;font-weight:700'>M" + simMag + "</span></p>" +
+    "<p>🕳️ Profundidad: " + simDepth + " km (superficial)</p>" +
+    "<div class='prep-tip' id='post-disaster-info'>🛡️ Cargando evaluación post-desastre...</div>";
+  detailPanel.classList.remove("hidden");
+
+  try {
+    var res = await fetch(API + "/post-disaster/" + simLat + "/" + simLon + "/" + simMag + "?depth=" + simDepth);
+    var d = await res.json();
+    document.getElementById("post-disaster-info").innerHTML = formatPostDisaster(d);
+  } catch(e) {
+    document.getElementById("post-disaster-info").innerHTML = "🛡️ Evaluación no disponible — backend en cold start, intente en 30s";
+  }
 }
 
 document.getElementById("close-detail").addEventListener("click", function() {
