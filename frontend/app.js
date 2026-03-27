@@ -134,7 +134,10 @@ legend.onAdd = function() {
   const div = L.DomUtil.create("div", "legend");
   div.innerHTML =
     "<div class='legend-title'>🗺️ Leyenda</div>" +
-    "<div class='legend-item'><span class='legend-dot' style='background:#ff6b35'></span> Foco de calor</div>" +
+    "<div class='legend-section'>Incendios (VIIRS NOAA-20 · 375m)</div>" +
+    "<div class='legend-item'><span class='legend-dot' style='background:#ff3333'></span> Alta intensidad (FRP≥20MW)</div>" +
+    "<div class='legend-item'><span class='legend-dot' style='background:#ff9500'></span> Media intensidad (5-20MW)</div>" +
+    "<div class='legend-item'><span class='legend-dot' style='background:#ff6b35'></span> Baja intensidad (&lt;5MW)</div>" +
     "<div class='legend-section'>Sismos por magnitud</div>" +
     "<div class='legend-item'><span class='legend-dot' style='background:#4ade80'></span> M &lt; 4.5</div>" +
     "<div class='legend-item'><span class='legend-dot' style='background:#ffd700'></span> M 4.5 – 6.0</div>" +
@@ -358,7 +361,8 @@ async function loadVolcanoes() {
       L.marker([v.lat, v.lon], { icon: icon })
         .bindTooltip(
           "<b>🌋 " + v.name + "</b><br>Alerta: <span style='color:" + color + ";font-weight:700'>" + v.alert + "</span><br>" +
-          "Elevación: " + v.elevation + " m<br>Región: " + v.region,
+          "Elevación: " + v.elevation + " m<br>Región: " + v.region +
+          (v.risk_rank ? "<br>Ranking riesgo: <b>#" + v.risk_rank + "</b> de 87" : ""),
           { sticky: true }
         ).addTo(volcanoLayer);
     });
@@ -1369,15 +1373,19 @@ async function loadFires() {
     try { document.getElementById("qp-fires-count").textContent = json.count; } catch(e) {}
     updateLastEvent();
     json.data.forEach(function(f) {
-      const radius = Math.max(5, (f.brightness - 300) / 12);
+      const radius = f.frp ? Math.max(5, Math.min(18, f.frp / 3)) : Math.max(5, (f.brightness - 300) / 12);
+      const fireColor = (f.frp || 0) >= 20 ? "#ff3333" : (f.frp || 0) >= 5 ? "#ff9500" : "#ff6b35";
       const circle = L.circleMarker([f.lat, f.lon], {
-        radius: radius, fillColor: "#ff6b35", color: "#ff9500",
+        radius: radius, fillColor: fireColor, color: fireColor,
         weight: 1, opacity: 0.9, fillOpacity: 0.75
       }).addTo(fireLayer);
       circle.on("mouseover", function(e) {
         showTooltip(e,
-          "<b>🔥 Foco de calor</b><br>Brillo: " + f.brightness + " K<br>" +
-          "Confianza: " + f.confidence + "%<br>Fecha: " + f.date
+          "<b>🔥 Foco de calor</b>" + (f.satellite ? " <span style='color:#5c7a9e'>(" + f.instrument + " " + f.satellite + ")</span>" : "") + "<br>" +
+          (f.frp ? "Potencia: <b>" + f.frp + " MW</b>" + (f.frp >= 20 ? " 🔴" : f.frp >= 5 ? " 🟡" : "") + "<br>" : "") +
+          "Brillo: " + f.brightness + " K<br>" +
+          "Confianza: " + f.confidence + "%" +
+          (f.date ? "<br>Fecha: " + f.date : "")
         );
       });
       circle.on("mouseout", hideTooltip);
@@ -1430,15 +1438,17 @@ document.getElementById("toggle-heat").addEventListener("change", async function
 
 // fullscreen-btn removed from sidebar
 
+let countdownInterval = null;
 function startCountdown() {
+  if (countdownInterval) clearInterval(countdownInterval);
   let seconds = 300;
   const countdownEl = document.getElementById("footer-countdown");
-  const interval = setInterval(function() {
+  countdownInterval = setInterval(function() {
     seconds--;
     const min = Math.floor(seconds / 60);
     const sec = seconds % 60;
     if (countdownEl) countdownEl.textContent = "Actualización en " + min + ":" + String(sec).padStart(2, "0");
-    if (seconds <= 0) { clearInterval(interval); refresh(); }
+    if (seconds <= 0) { clearInterval(countdownInterval); refresh(); }
   }, 1000);
 }
 
@@ -1836,8 +1846,8 @@ async function loadWeather() {
         html += "<div style='font-size:0.72rem;color:#5c7a9e;margin-bottom:6px'>" + data.fires.count + " focos activos</div>";
         data.fires.data.slice(0, 5).forEach(function(f) {
           html += "<div class='cp-item' onclick='map.flyTo([" + f.lat + "," + f.lon + "],12)'>" +
-            "🔥 Brillo: " + f.brightness + " K · Confianza: " + f.confidence + "%" +
-            "<br><span style='color:#3a5270;font-size:0.65rem'>" + f.distance_km + " km</span></div>";
+            "🔥 " + (f.frp ? "<b>" + f.frp + " MW</b>" + (f.frp >= 20 ? " 🔴" : "") : "Brillo: " + f.brightness + " K") + " · Confianza: " + f.confidence + "%" +
+            "<br><span style='color:#3a5270;font-size:0.65rem'>" + f.distance_km + " km" + (f.satellite ? " · " + f.satellite : "") + "</span></div>";
         });
       } else {
         html += "<div class='cp-empty'>Sin focos de calor activos en 80 km</div>";

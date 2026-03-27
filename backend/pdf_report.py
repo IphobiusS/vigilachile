@@ -205,7 +205,7 @@ def generate_pdf(quakes, fires, risk, ai_report, trends, volcanoes=None, tsunami
     # FOOTER
     elements.append(HRFlowable(width="100%", thickness=1, color=primary))
     elements.append(Spacer(1, 6))
-    elements.append(Paragraph("Fuentes: CSN · Universidad de Chile · NASA FIRMS · USGS · SERNAGEOMIN · WeatherAPI · SENAPRED", small_s))
+    elements.append(Paragraph("Fuentes: CSN · Universidad de Chile · NASA FIRMS (VIIRS NOAA-20) · USGS · SERNAGEOMIN · WeatherAPI · SENAPRED", small_s))
     elements.append(Paragraph("VigilaChile — Plataforma de Monitoreo Integral de Desastres Naturales en Tiempo Real", small_s))
 
     doc.build(elements)
