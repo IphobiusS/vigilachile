@@ -96,8 +96,6 @@ let volcanoLayer = L.layerGroup().addTo(map);
 let regionLayer = L.layerGroup().addTo(map);
 let aftershockLayer = null;
 let heatLayer = null;
-let userMarker = null;
-let userLocation = null;
 let allQuakes = [];
 let allMarkers = [];
 let minMag = 2.5;
@@ -282,19 +280,6 @@ async function liveTick() {
     liveFetchInProgress = false;
   }
 }
-
-// ===== PANEL EVENTOS FLOTANTE =====
-// Start collapsed on mobile
-let eventsCollapsed = window.innerWidth <= 768;
-if (eventsCollapsed) {
-  document.getElementById("events-float-body").classList.add("collapsed");
-  document.getElementById("events-toggle-btn").textContent = "▼";
-}
-document.getElementById("events-float-header").addEventListener("click", function() {
-  eventsCollapsed = !eventsCollapsed;
-  document.getElementById("events-float-body").classList.toggle("collapsed", eventsCollapsed);
-  document.getElementById("events-toggle-btn").textContent = eventsCollapsed ? "▼" : "▲";
-});
 
 // ===== PANEL IA — DOCK INFERIOR =====
 document.getElementById("ai-dock-bar").addEventListener("click", function() {
@@ -1476,17 +1461,6 @@ function renderQuakes(quakes) {
     circle.on("mouseout", hideTooltip);
     circle.on("click", function() { hideTooltip(); showDetail(q, circle); });
   });
-
-  if (userLocation && filtered.length > 0) {
-    const nearest = filtered.reduce(function(a, b) {
-      return distanceKm(userLocation.lat, userLocation.lon, a.lat, a.lon) < distanceKm(userLocation.lat, userLocation.lon, b.lat, b.lon) ? a : b;
-    });
-    const dist = distanceKm(userLocation.lat, userLocation.lon, nearest.lat, nearest.lon);
-    const risk = dist < 50 ? "⚠️ Zona de riesgo" : dist < 150 ? "🟡 Precaución" : "✅ Zona segura";
-    document.getElementById("location-content").innerHTML =
-      "📍 <b>Tu ubicación detectada</b><br>Sismo más cercano: <b>M" + nearest.magnitude + "</b><br>" +
-      nearest.place + "<br>Distancia: <b>" + dist + " km</b><br>Estado: <b>" + risk + "</b>";
-  }
 }
 
 async function loadFires() {
