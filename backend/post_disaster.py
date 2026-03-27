@@ -117,14 +117,14 @@ def assess_post_disaster(quake, fires=None, volcanoes=None):
     depth = quake.get("depth", 30)
     place = quake.get("place", "Chile")
 
-    # 1. Radio de afectación significativa por magnitud
-    # Basado en datos reales de terremotos en Chile:
-    # 27F 2010 (M8.8): daño significativo ~150km del epicentro
-    # Illapel 2015 (M8.4): daño moderado ~100km
-    # Estos son radios de DAÑO POTENCIAL, no de percepción
+    # 1. Radio de evaluación prioritaria por magnitud
+    # Chile: construcción antisísmica reduce daño significativo
+    # 27F 2010 (M8.8): daño estructural grave concentrado en ~60km
+    # Illapel 2015 (M8.4): daño moderado ~40km
+    # Estos son radios de EVALUACIÓN PRIORITARIA para equipos de terreno
     impact_radii = {
-        5.0: 15, 5.5: 25, 6.0: 40, 6.5: 60,
-        7.0: 90, 7.5: 130, 8.0: 180, 8.5: 250, 9.0: 350
+        5.0: 10, 5.5: 15, 6.0: 25, 6.5: 35,
+        7.0: 50, 7.5: 70, 8.0: 100, 8.5: 150, 9.0: 200
     }
     radius_km = 15
     for m, r in sorted(impact_radii.items()):
@@ -193,7 +193,7 @@ def assess_post_disaster(quake, fires=None, volcanoes=None):
         volc_list = volcanoes if isinstance(volcanoes, list) else volcanoes.get("data", [])
         for v in volc_list:
             dist = _haversine_km(lat, lon, v["lat"], v["lon"])
-            if dist <= 200:  # Volcanes dentro de 200km
+            if dist <= 100:  # Volcanes dentro de 100km
                 nearby_volcanoes.append({
                     "name": v["name"],
                     "alert": v.get("alert", "Verde"),
@@ -202,22 +202,23 @@ def assess_post_disaster(quake, fires=None, volcanoes=None):
                 })
     nearby_volcanoes.sort(key=lambda x: x["distance_km"])
 
-    # 7. Nivel de alerta sugerido
-    if mag >= 7.5 or epicenter_mmi["intensity"] in ("IX+",):
+    # 7. Nivel de alerta sugerido (calibrado para Chile, país sísmico)
+    # En Chile, M7.5 es un terremoto serio pero manejable. M8.0+ es emergencia nacional.
+    if mag >= 8.5 or epicenter_mmi["intensity"] in ("IX+",):
         alert_level = "ROJA"
-        alert_action = "Evacuacion inmediata. Activar protocolo nacional de emergencia. Desplegar equipos SAR."
-    elif mag >= 6.5 or epicenter_mmi["intensity"] in ("VIII",):
+        alert_action = "Activar protocolo nacional de emergencia. Evaluar alerta de tsunami para costa. Coordinar equipos SAR."
+    elif mag >= 7.5 or epicenter_mmi["intensity"] in ("VIII",):
         alert_level = "NARANJA"
-        alert_action = "Alerta de tsunami para costa. Evaluar dano estructural en radio de " + str(radius_km) + "km. Activar hospitales de campaña."
-    elif mag >= 5.5 or epicenter_mmi["intensity"] in ("VII",):
+        alert_action = "Monitorear alerta de tsunami. Evaluar dano estructural en radio de " + str(radius_km) + "km. Coordinar con hospitales de campaña."
+    elif mag >= 6.5 or epicenter_mmi["intensity"] in ("VII",):
         alert_level = "AMARILLA"
-        alert_action = "Inspeccion de infraestructura critica. Monitoreo de replicas. Preparar albergues."
-    elif mag >= 4.5:
+        alert_action = "Inspeccion de infraestructura critica cercana al epicentro. Monitoreo activo de replicas."
+    elif mag >= 5.5:
         alert_level = "VERDE-PREVENTIVA"
-        alert_action = "Monitoreo de replicas. Sin accion inmediata requerida."
+        alert_action = "Monitoreo de replicas. Revision preventiva de infraestructura."
     else:
         alert_level = "VERDE"
-        alert_action = "Sin accion requerida. Evento dentro de parametros normales."
+        alert_action = "Evento dentro de parametros normales para Chile. Monitoreo de rutina."
 
     # 8. Recomendaciones para equipos de evaluación
     recommendations = []
