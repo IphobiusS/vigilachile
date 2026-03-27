@@ -109,9 +109,9 @@ def calculate_region_risk(quakes, fires):
                             ).replace(tzinfo=timezone.utc)
                             if qtime > cutoff_6h:
                                 nearby_6h.append(q)
-                        except:
+                        except (ValueError, TypeError):
                             pass
-            except:
+            except (KeyError, ValueError, TypeError):
                 pass
 
         max_mag = max([q["magnitude"] for q in nearby_24h], default=0)

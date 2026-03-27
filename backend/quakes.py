@@ -21,7 +21,7 @@ def get_quakes():
                         t = datetime.fromisoformat(time_str.replace(" ", "T")).replace(tzinfo=timezone.utc)
                         if t < cutoff_24h:
                             continue
-                    except:
+                    except (ValueError, TypeError):
                         pass
 
                 quakes.append({

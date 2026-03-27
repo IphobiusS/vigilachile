@@ -1,11 +1,14 @@
 import requests
 import os
+import logging
 from datetime import datetime, timezone, timedelta
+
+logger = logging.getLogger(__name__)
 
 try:
     from dotenv import load_dotenv
     load_dotenv()
-except:
+except ImportError:
     pass
 
 WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "")

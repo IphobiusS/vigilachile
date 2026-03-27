@@ -186,7 +186,8 @@ def analyze():
         t = fut_t.result()
         try:
             ws = fut_ws.result()
-        except:
+        except Exception as e:
+            logger.warning("Weather summary failed: %s", e)
             ws = None
     return analyze_seismic_pattern(q["data"], f["data"], r, volcanoes=v, tsunami=t, weather_summary=ws)
 
@@ -257,7 +258,7 @@ def get_trends_data():
             for e in events:
                 try:
                     mags.append(float(e["magnitude"]["value"]))
-                except:
+                except (KeyError, ValueError, TypeError):
                     pass
             if i == 0:
                 today_count = len(events)
@@ -265,8 +266,8 @@ def get_trends_data():
             else:
                 yesterday_count = len(events)
                 yesterday_max = max(mags) if mags else 0.0
-        except:
-            pass
+        except Exception as e:
+            logger.debug("Trends fetch day %d failed: %s", i, e)
 
     diff = today_count - yesterday_count
     pct = round(diff / yesterday_count * 100) if yesterday_count > 0 else 0
@@ -366,7 +367,8 @@ def report_pdf():
             timeout=20
         )
         ai = res.json()["content"][0]["text"]
-    except:
+    except Exception as e:
+        logger.warning("PDF AI report failed: %s", e)
         ai = (
             "SISMOS: Se registraron " + str(total_quakes) + " eventos, magnitud maxima M" + str(max_mag) +
             ", zona mas activa " + top_zone + ". " +
@@ -493,10 +495,10 @@ def history():
                         "place": s.get("geo_reference", ""),
                         "time": s.get("utc_date", "")
                     })
-                except:
+                except (KeyError, ValueError, TypeError):
                     continue
-        except:
-            pass
+        except Exception as e:
+            logger.debug("History fetch day failed: %s", e)
         return day_quakes
 
     quakes = []
@@ -505,7 +507,8 @@ def history():
         for future in as_completed(futures):
             try:
                 quakes.extend(future.result())
-            except:
+            except Exception as e:
+                logger.debug("History future failed: %s", e)
                 continue
 
     return {"count": len(quakes), "data": quakes}

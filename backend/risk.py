@@ -16,7 +16,7 @@ def calculate_risk(quakes, fires):
                 quakes_24h.append(q)
             if t > cutoff_6h:
                 recent_6h.append(q)
-        except:
+        except (ValueError, TypeError, KeyError):
             quakes_24h.append(q)  # si no tiene fecha, incluir igual
 
     score = 0

@@ -1,11 +1,14 @@
 import requests
 import os
+import logging
 from datetime import datetime, timezone, timedelta
+
+logger = logging.getLogger(__name__)
 
 try:
     from dotenv import load_dotenv
     load_dotenv()
-except:
+except ImportError:
     pass
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
@@ -44,7 +47,7 @@ def analyze_seismic_pattern(quakes, fires, risk, volcanoes=None, tsunami=None, w
             ).replace(tzinfo=timezone.utc)
             if t > now - timedelta(hours=6):
                 recent.append(q)
-        except:
+        except (ValueError, TypeError):
             pass
 
     # Detectar enjambre sísmico
@@ -61,7 +64,7 @@ def analyze_seismic_pattern(quakes, fires, risk, volcanoes=None, tsunami=None, w
             if delta <= 1: last_1h.append(q)
             if delta <= 3: last_3h.append(q)
             if delta <= 12: last_12h.append(q)
-        except:
+        except (ValueError, TypeError):
             pass
 
     sorted_by_time = sorted(quakes, key=lambda q: q.get("time", ""), reverse=True)
